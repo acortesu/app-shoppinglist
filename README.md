@@ -24,15 +24,16 @@ Proyecto portfolio DevOps con foco en un MVP usable para planificación de comid
 - `infra/`: Terraform para entornos `dev` y `prod`
 - `docs/`: alcance funcional, modelo de dominio y plan de implementación
 
-## PostgreSQL local (docker-compose)
+## Entorno local (docker-compose)
 
 1. Levantar Docker Desktop.
 2. Desde la raíz del repo (`/Users/alo/Documents/Code/appCompras/appCompras`):
-   - `docker compose up -d postgres`
+   - Solo DB: `./scripts/dev-up.sh`
+   - DB + backend dockerizado: `./scripts/dev-up.sh app`
 3. Verificar salud:
    - `docker compose ps`
 4. Para apagar:
-   - `docker compose down`
+   - `./scripts/dev-down.sh`
 
 Credenciales por defecto del compose:
 - DB: `appcompras`
@@ -40,7 +41,13 @@ Credenciales por defecto del compose:
 - Password: `appcompras_pass`
 - Puerto: `5432`
 
-Con eso, el backend arranca contra PostgreSQL usando los defaults de `backend/src/main/resources/application.yml`.
+Si corrés backend en local (no docker), usa los defaults de `backend/src/main/resources/application.yml` y conecta a esa misma DB.
+
+## Test de integración Postgres
+
+- Test E2E con Postgres real (Testcontainers):
+  - `cd backend && gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
+- Requiere Docker disponible para el proceso de tests.
 
 ## Próximos hitos
 

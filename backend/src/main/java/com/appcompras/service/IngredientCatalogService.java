@@ -5,12 +5,15 @@ import com.appcompras.domain.MeasurementType;
 import com.appcompras.domain.Unit;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.Normalizer;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -29,9 +32,19 @@ public class IngredientCatalogService {
     private final ConcurrentMap<String, IngredientCatalogItem> catalog = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> aliasToIngredientId = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
+    private final IngredientCustomRepository ingredientCustomRepository;
+
+    @Autowired
+    public IngredientCatalogService(ObjectMapper objectMapper, IngredientCustomRepository ingredientCustomRepository) {
+        this.objectMapper = objectMapper;
+        this.ingredientCustomRepository = ingredientCustomRepository;
+        loadSeedFromResource(SEED_FILE);
+        loadCustomFromDatabase();
+    }
 
     public IngredientCatalogService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.ingredientCustomRepository = null;
         loadSeedFromResource(SEED_FILE);
     }
 
@@ -96,10 +109,43 @@ public class IngredientCatalogService {
         }
 
         String id = "custom-" + normalizedName + "-" + UUID.randomUUID().toString().substring(0, 8);
-        IngredientCatalogItem item = switch (measurementType) {
+        IngredientCatalogItem item = customItem(id, trimmedName, measurementType);
+
+        if (ingredientCustomRepository != null) {
+            IngredientCustomEntity entity = new IngredientCustomEntity();
+            entity.setId(id);
+            entity.setName(trimmedName);
+            entity.setNormalizedName(normalizedName);
+            entity.setMeasurementType(measurementType);
+            entity.setCreatedAt(Instant.now());
+
+            try {
+                ingredientCustomRepository.save(entity);
+            } catch (DataIntegrityViolationException ex) {
+                throw new IllegalArgumentException("Ingredient already exists: " + trimmedName);
+            }
+        }
+
+        registerIngredient(item, List.of(normalizedName, id, trimmedName));
+        return item;
+    }
+
+    private void loadCustomFromDatabase() {
+        if (ingredientCustomRepository == null) {
+            return;
+        }
+
+        for (IngredientCustomEntity entity : ingredientCustomRepository.findAll()) {
+            IngredientCatalogItem item = customItem(entity.getId(), entity.getName(), entity.getMeasurementType());
+            registerIngredient(item, List.of(entity.getNormalizedName(), entity.getId(), entity.getName()));
+        }
+    }
+
+    private IngredientCatalogItem customItem(String id, String name, MeasurementType measurementType) {
+        return switch (measurementType) {
             case WEIGHT -> new IngredientCatalogItem(
                     id,
-                    trimmedName,
+                    name,
                     MeasurementType.WEIGHT,
                     Set.of(Unit.GRAM, Unit.KILOGRAM),
                     1.0,
@@ -107,7 +153,7 @@ public class IngredientCatalogService {
             );
             case VOLUME -> new IngredientCatalogItem(
                     id,
-                    trimmedName,
+                    name,
                     MeasurementType.VOLUME,
                     Set.of(Unit.MILLILITER, Unit.LITER),
                     1.0,
@@ -115,7 +161,7 @@ public class IngredientCatalogService {
             );
             case UNIT -> new IngredientCatalogItem(
                     id,
-                    trimmedName,
+                    name,
                     MeasurementType.UNIT,
                     Set.of(Unit.PIECE),
                     1.0,
@@ -123,19 +169,20 @@ public class IngredientCatalogService {
             );
             case TO_TASTE -> new IngredientCatalogItem(
                     id,
-                    trimmedName,
+                    name,
                     MeasurementType.TO_TASTE,
                     Set.of(Unit.TO_TASTE),
                     0.0,
                     Unit.TO_TASTE
             );
         };
+    }
 
-        catalog.put(id, item);
-        addAlias(id, normalizedName);
-        addAlias(id, id);
-        addAlias(id, trimmedName);
-        return item;
+    private void registerIngredient(IngredientCatalogItem item, List<String> aliases) {
+        catalog.put(item.ingredientId(), item);
+        for (String alias : aliases) {
+            addAlias(item.ingredientId(), alias);
+        }
     }
 
     private void loadSeedFromResource(String resourcePath) {
