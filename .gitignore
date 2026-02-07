@@ -9,6 +9,7 @@ __pycache__/
 # Backend build
 backend/.gradle/
 backend/build/
+.gradle-user-home/
 
 # Frontend build
 frontend/node_modules/
