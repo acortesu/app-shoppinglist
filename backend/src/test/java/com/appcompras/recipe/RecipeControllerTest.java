@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -116,6 +117,23 @@ class RecipeControllerTest {
         mockMvc.perform(put("/api/recipes/{id}", "missing-id")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteRecipeReturnsNoContent() throws Exception {
+        String id = createRecipeAndGetId();
+
+        mockMvc.perform(delete("/api/recipes/{id}", id))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/recipes/{id}", id))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteRecipeReturnsNotFoundWhenMissing() throws Exception {
+        mockMvc.perform(delete("/api/recipes/{id}", "missing-id"))
                 .andExpect(status().isNotFound());
     }
 

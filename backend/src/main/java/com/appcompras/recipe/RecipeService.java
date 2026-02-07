@@ -76,4 +76,8 @@ public class RecipeService {
         Recipe updated = recipes.computeIfPresent(id, updater);
         return Optional.ofNullable(updated);
     }
+
+    public boolean deleteById(String id) {
+        return recipes.remove(id) != null;
+    }
 }
