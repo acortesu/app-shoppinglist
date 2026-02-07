@@ -76,6 +76,18 @@ class RecipeControllerTest {
     }
 
     @Test
+    void getRecipesCanFilterByTypeAndKeepDescOrder() throws Exception {
+        createRecipeAndGetId("Desayuno 1", "BREAKFAST");
+        String secondBreakfastId = createRecipeAndGetId("Desayuno 2", "BREAKFAST");
+        createRecipeAndGetId("Almuerzo 1", "LUNCH");
+
+        mockMvc.perform(get("/api/recipes?type=BREAKFAST"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(secondBreakfastId))
+                .andExpect(jsonPath("$[0].type").value("BREAKFAST"));
+    }
+
+    @Test
     void updateRecipeReturnsUpdatedRecipe() throws Exception {
         String id = createRecipeAndGetId();
 
@@ -121,6 +133,27 @@ class RecipeControllerTest {
     }
 
     @Test
+    void updateRecipeRejectsInvalidQuantity() throws Exception {
+        String id = createRecipeAndGetId();
+
+        String payload = """
+                {
+                  "name": "Arroz con huevo",
+                  "type": "DINNER",
+                  "ingredients": [
+                    { "ingredientId": "rice", "quantity": 0, "unit": "GRAM" }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/recipes/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+    }
+
+    @Test
     void deleteRecipeReturnsNoContent() throws Exception {
         String id = createRecipeAndGetId();
 
@@ -154,19 +187,42 @@ class RecipeControllerTest {
                 .andExpect(jsonPath("$.error").isNotEmpty());
     }
 
+    @Test
+    void createRecipeRejectsZeroQuantity() throws Exception {
+        String payload = """
+                {
+                  "name": "Arroz sin cantidad",
+                  "type": "LUNCH",
+                  "ingredients": [
+                    { "ingredientId": "rice", "quantity": 0, "unit": "GRAM" }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/recipes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+    }
+
     private String createRecipeAndGetId() throws Exception {
+        return createRecipeAndGetId("Arroz con tomate", "LUNCH");
+    }
+
+    private String createRecipeAndGetId(String name, String type) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/recipes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "name": "Arroz con tomate",
-                                  "type": "LUNCH",
+                                  "name": "%s",
+                                  "type": "%s",
                                   "ingredients": [
                                     { "ingredientId": "rice", "quantity": 1, "unit": "CUP" },
                                     { "ingredientId": "tomato", "quantity": 2, "unit": "PIECE" }
                                   ]
                                 }
-                                """))
+                                """.formatted(name, type)))
                 .andExpect(status().isCreated())
                 .andReturn();
 

@@ -3,6 +3,7 @@ package com.appcompras.recipe;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,8 +47,13 @@ public class RecipeService {
         return Optional.ofNullable(recipes.get(id));
     }
 
-    public List<Recipe> findAll() {
-        return recipes.values().stream().toList();
+    public List<Recipe> findAll(MealType type) {
+        return recipes.values().stream()
+                .filter(recipe -> type == null || recipe.type() == type)
+                .sorted(Comparator.comparing(Recipe::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed()
+                        .thenComparing(Recipe::id))
+                .toList();
     }
 
     public Optional<Recipe> update(String id, CreateRecipeRequest request) {
