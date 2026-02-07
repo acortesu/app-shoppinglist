@@ -86,4 +86,21 @@ public class RecipeService {
     public boolean deleteById(String id) {
         return recipes.remove(id) != null;
     }
+
+    public boolean incrementUsageCount(String id, Instant usedAt) {
+        Recipe updated = recipes.computeIfPresent(id, (ignored, existing) -> new Recipe(
+                existing.id(),
+                existing.name(),
+                existing.type(),
+                existing.ingredients(),
+                existing.preparation(),
+                existing.notes(),
+                existing.tags(),
+                existing.usageCount() + 1,
+                usedAt,
+                existing.createdAt(),
+                Instant.now()
+        ));
+        return updated != null;
+    }
 }
