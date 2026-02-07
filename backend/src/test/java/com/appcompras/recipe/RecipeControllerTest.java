@@ -50,6 +50,44 @@ class RecipeControllerTest {
     }
 
     @Test
+    void createRecipeResolvesAliasToCanonicalIngredientId() throws Exception {
+        String payload = """
+                {
+                  "name": "Arroz con tomate",
+                  "type": "LUNCH",
+                  "ingredients": [
+                    { "ingredientId": "Arroz", "quantity": 1, "unit": "CUP" }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/recipes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ingredients[0].ingredientId").value("rice"));
+    }
+
+    @Test
+    void createRecipeRejectsUnknownIngredient() throws Exception {
+        String payload = """
+                {
+                  "name": "Conejo al horno",
+                  "type": "DINNER",
+                  "ingredients": [
+                    { "ingredientId": "conejo", "quantity": 1, "unit": "PIECE" }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/recipes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+    }
+
+    @Test
     void getRecipeByIdReturnsRecipe() throws Exception {
         String id = createRecipeAndGetId();
 

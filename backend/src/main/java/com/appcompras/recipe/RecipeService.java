@@ -1,5 +1,6 @@
 package com.appcompras.recipe;
 
+import com.appcompras.service.IngredientCatalogService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,13 +17,18 @@ import java.util.function.BiFunction;
 public class RecipeService {
 
     private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
+    private final IngredientCatalogService ingredientCatalogService;
+
+    public RecipeService(IngredientCatalogService ingredientCatalogService) {
+        this.ingredientCatalogService = ingredientCatalogService;
+    }
 
     public Recipe create(CreateRecipeRequest request) {
         Instant now = Instant.now();
         String id = UUID.randomUUID().toString();
 
         List<RecipeIngredient> ingredients = request.ingredients().stream()
-                .map(i -> new RecipeIngredient(i.ingredientId(), i.quantity(), i.unit()))
+                .map(this::toValidatedIngredient)
                 .toList();
 
         Recipe recipe = new Recipe(
@@ -61,7 +67,7 @@ public class RecipeService {
             Instant now = Instant.now();
 
             List<RecipeIngredient> ingredients = request.ingredients().stream()
-                    .map(i -> new RecipeIngredient(i.ingredientId(), i.quantity(), i.unit()))
+                    .map(this::toValidatedIngredient)
                     .toList();
 
             return new Recipe(
@@ -102,5 +108,21 @@ public class RecipeService {
                 Instant.now()
         ));
         return updated != null;
+    }
+
+    private RecipeIngredient toValidatedIngredient(CreateRecipeRequest.IngredientInput input) {
+        String canonicalIngredientId = ingredientCatalogService.resolveIngredientId(input.ingredientId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Unknown ingredient: " + input.ingredientId() + ". Use /api/ingredients to discover options or create custom."
+                ));
+
+        com.appcompras.domain.Unit domainUnit = com.appcompras.domain.Unit.valueOf(input.unit().name());
+        if (!ingredientCatalogService.isUnitAllowed(canonicalIngredientId, domainUnit)) {
+            throw new IllegalArgumentException(
+                    "Unit " + input.unit() + " is not allowed for ingredient " + canonicalIngredientId
+            );
+        }
+
+        return new RecipeIngredient(canonicalIngredientId, input.quantity(), input.unit());
     }
 }
