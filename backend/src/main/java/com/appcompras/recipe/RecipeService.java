@@ -2,27 +2,25 @@ package com.appcompras.recipe;
 
 import com.appcompras.service.IngredientCatalogService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 
 @Service
 public class RecipeService {
 
-    private final Map<String, Recipe> recipes = new ConcurrentHashMap<>();
+    private final RecipeRepository recipeRepository;
     private final IngredientCatalogService ingredientCatalogService;
 
-    public RecipeService(IngredientCatalogService ingredientCatalogService) {
+    public RecipeService(RecipeRepository recipeRepository, IngredientCatalogService ingredientCatalogService) {
+        this.recipeRepository = recipeRepository;
         this.ingredientCatalogService = ingredientCatalogService;
     }
 
+    @Transactional
     public Recipe create(CreateRecipeRequest request) {
         Instant now = Instant.now();
         String id = UUID.randomUUID().toString();
@@ -31,83 +29,87 @@ public class RecipeService {
                 .map(this::toValidatedIngredient)
                 .toList();
 
-        Recipe recipe = new Recipe(
-                id,
-                request.name().trim(),
-                request.type(),
-                ingredients,
-                request.preparation(),
-                request.notes(),
-                request.tags() == null ? Set.of() : request.tags(),
-                0,
-                null,
-                now,
-                now
-        );
+        RecipeEntity entity = new RecipeEntity();
+        entity.setId(id);
+        entity.setName(request.name().trim());
+        entity.setType(request.type());
+        entity.setIngredients(RecipeEntityMapper.toEmbeddables(ingredients));
+        entity.setPreparation(request.preparation());
+        entity.setNotes(request.notes());
+        entity.setTags(RecipeEntityMapper.toTagSet(request.tags()));
+        entity.setUsageCount(0);
+        entity.setLastUsedAt(null);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
 
-        recipes.put(id, recipe);
-        return recipe;
+        RecipeEntity saved = recipeRepository.save(entity);
+        return RecipeEntityMapper.toDomain(saved);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Recipe> findById(String id) {
-        return Optional.ofNullable(recipes.get(id));
+        return recipeRepository.findById(id)
+                .map(RecipeEntityMapper::toDomain);
     }
 
+    @Transactional(readOnly = true)
     public List<Recipe> findAll(MealType type) {
-        return recipes.values().stream()
-                .filter(recipe -> type == null || recipe.type() == type)
-                .sorted(Comparator.comparing(Recipe::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .reversed()
-                        .thenComparing(Recipe::id))
+        List<RecipeEntity> entities = type == null
+                ? recipeRepository.findAllByOrderByCreatedAtDescIdAsc()
+                : recipeRepository.findAllByTypeOrderByCreatedAtDescIdAsc(type);
+
+        return entities.stream()
+                .map(RecipeEntityMapper::toDomain)
                 .toList();
     }
 
+    @Transactional
     public Optional<Recipe> update(String id, CreateRecipeRequest request) {
-        BiFunction<String, Recipe, Recipe> updater = (ignored, existing) -> {
-            Instant now = Instant.now();
+        Optional<RecipeEntity> existingOpt = recipeRepository.findById(id);
+        if (existingOpt.isEmpty()) {
+            return Optional.empty();
+        }
 
-            List<RecipeIngredient> ingredients = request.ingredients().stream()
-                    .map(this::toValidatedIngredient)
-                    .toList();
+        Instant now = Instant.now();
+        List<RecipeIngredient> ingredients = request.ingredients().stream()
+                .map(this::toValidatedIngredient)
+                .toList();
 
-            return new Recipe(
-                    existing.id(),
-                    request.name().trim(),
-                    request.type(),
-                    ingredients,
-                    request.preparation(),
-                    request.notes(),
-                    request.tags() == null ? Set.of() : request.tags(),
-                    existing.usageCount(),
-                    existing.lastUsedAt(),
-                    existing.createdAt(),
-                    now
-            );
-        };
+        RecipeEntity existing = existingOpt.get();
+        existing.setName(request.name().trim());
+        existing.setType(request.type());
+        existing.setIngredients(RecipeEntityMapper.toEmbeddables(ingredients));
+        existing.setPreparation(request.preparation());
+        existing.setNotes(request.notes());
+        existing.setTags(RecipeEntityMapper.toTagSet(request.tags()));
+        existing.setUpdatedAt(now);
 
-        Recipe updated = recipes.computeIfPresent(id, updater);
-        return Optional.ofNullable(updated);
+        RecipeEntity saved = recipeRepository.save(existing);
+        return Optional.of(RecipeEntityMapper.toDomain(saved));
     }
 
+    @Transactional
     public boolean deleteById(String id) {
-        return recipes.remove(id) != null;
+        if (!recipeRepository.existsById(id)) {
+            return false;
+        }
+        recipeRepository.deleteById(id);
+        return true;
     }
 
+    @Transactional
     public boolean incrementUsageCount(String id, Instant usedAt) {
-        Recipe updated = recipes.computeIfPresent(id, (ignored, existing) -> new Recipe(
-                existing.id(),
-                existing.name(),
-                existing.type(),
-                existing.ingredients(),
-                existing.preparation(),
-                existing.notes(),
-                existing.tags(),
-                existing.usageCount() + 1,
-                usedAt,
-                existing.createdAt(),
-                Instant.now()
-        ));
-        return updated != null;
+        Optional<RecipeEntity> existingOpt = recipeRepository.findById(id);
+        if (existingOpt.isEmpty()) {
+            return false;
+        }
+
+        RecipeEntity existing = existingOpt.get();
+        existing.setUsageCount(existing.getUsageCount() + 1);
+        existing.setLastUsedAt(usedAt);
+        existing.setUpdatedAt(Instant.now());
+        recipeRepository.save(existing);
+        return true;
     }
 
     private RecipeIngredient toValidatedIngredient(CreateRecipeRequest.IngredientInput input) {

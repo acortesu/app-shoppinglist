@@ -2,60 +2,89 @@ package com.appcompras.planning;
 
 import com.appcompras.recipe.RecipeService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class MealPlanService {
 
-    private final Map<String, MealPlan> plans = new ConcurrentHashMap<>();
+    private final MealPlanRepository mealPlanRepository;
     private final RecipeService recipeService;
 
-    public MealPlanService(RecipeService recipeService) {
+    public MealPlanService(MealPlanRepository mealPlanRepository, RecipeService recipeService) {
+        this.mealPlanRepository = mealPlanRepository;
         this.recipeService = recipeService;
     }
 
+    @Transactional
     public MealPlan create(CreateMealPlanRequest request) {
         Instant now = Instant.now();
         MealPlan plan = buildPlan(UUID.randomUUID().toString(), request, now, now);
-        plans.put(plan.id(), plan);
+
+        MealPlanEntity entity = new MealPlanEntity();
+        entity.setId(plan.id());
+        entity.setStartDate(plan.startDate());
+        entity.setEndDate(plan.endDate());
+        entity.setPeriod(plan.period());
+        entity.setSlots(MealPlanEntityMapper.toEmbeddables(plan.slots()));
+        entity.setCreatedAt(plan.createdAt());
+        entity.setUpdatedAt(plan.updatedAt());
+
+        MealPlanEntity saved = mealPlanRepository.save(entity);
         applyUsageDelta(List.of(), plan.slots());
-        return plan;
+        return MealPlanEntityMapper.toDomain(saved);
     }
 
+    @Transactional
     public Optional<MealPlan> update(String id, CreateMealPlanRequest request) {
-        MealPlan updated = plans.computeIfPresent(id, (ignored, existing) -> {
-            Instant now = Instant.now();
-            MealPlan next = buildPlan(existing.id(), request, existing.createdAt(), now);
-            applyUsageDelta(existing.slots(), next.slots());
-            return next;
-        });
-        return Optional.ofNullable(updated);
+        Optional<MealPlanEntity> existingOpt = mealPlanRepository.findById(id);
+        if (existingOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        MealPlanEntity existing = existingOpt.get();
+        List<PlannedMealSlot> previousSlots = MealPlanEntityMapper.toDomain(existing).slots();
+        Instant now = Instant.now();
+        MealPlan next = buildPlan(existing.getId(), request, existing.getCreatedAt(), now);
+
+        existing.setStartDate(next.startDate());
+        existing.setEndDate(next.endDate());
+        existing.setPeriod(next.period());
+        existing.setSlots(MealPlanEntityMapper.toEmbeddables(next.slots()));
+        existing.setUpdatedAt(next.updatedAt());
+
+        MealPlanEntity saved = mealPlanRepository.save(existing);
+        applyUsageDelta(previousSlots, next.slots());
+        return Optional.of(MealPlanEntityMapper.toDomain(saved));
     }
 
+    @Transactional(readOnly = true)
     public List<MealPlan> findAll() {
-        return plans.values().stream()
-                .sorted(Comparator.comparing(MealPlan::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .reversed()
-                        .thenComparing(MealPlan::id))
+        return mealPlanRepository.findAllByOrderByCreatedAtDescIdAsc().stream()
+                .map(MealPlanEntityMapper::toDomain)
                 .toList();
     }
 
+    @Transactional
     public boolean deleteById(String id) {
-        return plans.remove(id) != null;
+        if (!mealPlanRepository.existsById(id)) {
+            return false;
+        }
+        mealPlanRepository.deleteById(id);
+        return true;
     }
 
+    @Transactional(readOnly = true)
     public Optional<MealPlan> findById(String id) {
-        return Optional.ofNullable(plans.get(id));
+        return mealPlanRepository.findById(id)
+                .map(MealPlanEntityMapper::toDomain);
     }
 
     private MealPlan buildPlan(String id, CreateMealPlanRequest request, Instant createdAt, Instant updatedAt) {
@@ -64,10 +93,10 @@ public class MealPlanService {
         validateSlots(request.startDate(), endDate, inputSlots);
         validateRecipesExist(inputSlots);
 
-        List<PlannedMealSlot> slots = new ArrayList<>();
-        for (CreateMealPlanRequest.SlotInput slot : inputSlots) {
-            slots.add(new PlannedMealSlot(slot.date(), slot.mealType(), slot.recipeId()));
-        }
+        List<PlannedMealSlot> slots = inputSlots.stream()
+                .map(slot -> new PlannedMealSlot(slot.date(), slot.mealType(), slot.recipeId()))
+                .toList();
+
         return new MealPlan(id, request.startDate(), endDate, request.period(), slots, createdAt, updatedAt);
     }
 

@@ -24,6 +24,24 @@ Proyecto portfolio DevOps con foco en un MVP usable para planificación de comid
 - `infra/`: Terraform para entornos `dev` y `prod`
 - `docs/`: alcance funcional, modelo de dominio y plan de implementación
 
+## PostgreSQL local (docker-compose)
+
+1. Levantar Docker Desktop.
+2. Desde la raíz del repo (`/Users/alo/Documents/Code/appCompras/appCompras`):
+   - `docker compose up -d postgres`
+3. Verificar salud:
+   - `docker compose ps`
+4. Para apagar:
+   - `docker compose down`
+
+Credenciales por defecto del compose:
+- DB: `appcompras`
+- User: `appcompras_user`
+- Password: `appcompras_pass`
+- Puerto: `5432`
+
+Con eso, el backend arranca contra PostgreSQL usando los defaults de `backend/src/main/resources/application.yml`.
+
 ## Próximos hitos
 
 1. Definir modelo de dominio backend y reglas de conversión.

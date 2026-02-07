@@ -2,60 +2,77 @@ package com.appcompras.shopping;
 
 import com.appcompras.domain.ShoppingListItem;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 public class ShoppingListDraftService {
 
-    private final Map<String, ShoppingListDraft> drafts = new ConcurrentHashMap<>();
+    private final ShoppingListDraftRepository shoppingListDraftRepository;
 
+    public ShoppingListDraftService(ShoppingListDraftRepository shoppingListDraftRepository) {
+        this.shoppingListDraftRepository = shoppingListDraftRepository;
+    }
+
+    @Transactional
     public ShoppingListDraft createFromGenerated(String planId, List<ShoppingListItem> generatedItems) {
         Instant now = Instant.now();
-        ShoppingListDraft draft = new ShoppingListDraft(
-                UUID.randomUUID().toString(),
-                planId,
-                generatedItems.stream().map(this::toDraftItem).toList(),
-                now,
-                now
-        );
-        drafts.put(draft.id(), draft);
-        return draft;
+
+        ShoppingListDraftEntity entity = new ShoppingListDraftEntity();
+        entity.setId(UUID.randomUUID().toString());
+        entity.setPlanId(planId);
+        entity.setItems(ShoppingListDraftEntityMapper.toEmbeddables(
+                generatedItems.stream().map(this::toDraftItem).toList()
+        ));
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+
+        ShoppingListDraftEntity saved = shoppingListDraftRepository.save(entity);
+        return ShoppingListDraftEntityMapper.toDomain(saved);
     }
 
+    @Transactional(readOnly = true)
     public Optional<ShoppingListDraft> findById(String id) {
-        return Optional.ofNullable(drafts.get(id));
+        return shoppingListDraftRepository.findById(id)
+                .map(ShoppingListDraftEntityMapper::toDomain);
     }
 
+    @Transactional(readOnly = true)
     public List<ShoppingListDraft> findAll() {
-        return drafts.values().stream()
-                .sorted(Comparator.comparing(ShoppingListDraft::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .reversed()
-                        .thenComparing(ShoppingListDraft::id))
+        return shoppingListDraftRepository.findAllByOrderByCreatedAtDescIdAsc().stream()
+                .map(ShoppingListDraftEntityMapper::toDomain)
                 .toList();
     }
 
+    @Transactional
     public Optional<ShoppingListDraft> replaceItems(String id, UpdateShoppingListRequest request) {
-        ShoppingListDraft updated = drafts.computeIfPresent(id, (ignored, existing) -> new ShoppingListDraft(
-                existing.id(),
-                existing.planId(),
-                request.items().stream().map(this::fromRequestItem).collect(Collectors.toList()),
-                existing.createdAt(),
-                Instant.now()
-        ));
+        Optional<ShoppingListDraftEntity> existingOpt = shoppingListDraftRepository.findById(id);
+        if (existingOpt.isEmpty()) {
+            return Optional.empty();
+        }
 
-        return Optional.ofNullable(updated);
+        ShoppingListDraftEntity existing = existingOpt.get();
+        existing.setItems(ShoppingListDraftEntityMapper.toEmbeddables(
+                request.items().stream().map(this::fromRequestItem).collect(Collectors.toList())
+        ));
+        existing.setUpdatedAt(Instant.now());
+
+        ShoppingListDraftEntity saved = shoppingListDraftRepository.save(existing);
+        return Optional.of(ShoppingListDraftEntityMapper.toDomain(saved));
     }
 
+    @Transactional
     public boolean deleteById(String id) {
-        return drafts.remove(id) != null;
+        if (!shoppingListDraftRepository.existsById(id)) {
+            return false;
+        }
+        shoppingListDraftRepository.deleteById(id);
+        return true;
     }
 
     private ShoppingListDraftItem toDraftItem(ShoppingListItem item) {
