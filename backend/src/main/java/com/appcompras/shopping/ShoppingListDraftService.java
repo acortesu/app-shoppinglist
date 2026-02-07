@@ -4,6 +4,7 @@ import com.appcompras.domain.ShoppingListItem;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +34,14 @@ public class ShoppingListDraftService {
         return Optional.ofNullable(drafts.get(id));
     }
 
+    public List<ShoppingListDraft> findAll() {
+        return drafts.values().stream()
+                .sorted(Comparator.comparing(ShoppingListDraft::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed()
+                        .thenComparing(ShoppingListDraft::id))
+                .toList();
+    }
+
     public Optional<ShoppingListDraft> replaceItems(String id, UpdateShoppingListRequest request) {
         ShoppingListDraft updated = drafts.computeIfPresent(id, (ignored, existing) -> new ShoppingListDraft(
                 existing.id(),
@@ -43,6 +52,10 @@ public class ShoppingListDraftService {
         ));
 
         return Optional.ofNullable(updated);
+    }
+
+    public boolean deleteById(String id) {
+        return drafts.remove(id) != null;
     }
 
     private ShoppingListDraftItem toDraftItem(ShoppingListItem item) {

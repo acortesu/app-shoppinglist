@@ -10,11 +10,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
 
@@ -67,11 +69,27 @@ public class ShoppingListController {
         return ShoppingListResponse.from(draft);
     }
 
+    @GetMapping
+    public List<ShoppingListResponse> getAll() {
+        return shoppingListDraftService.findAll().stream()
+                .map(ShoppingListResponse::from)
+                .toList();
+    }
+
     @PutMapping("/{id}")
     public ShoppingListResponse update(@PathVariable String id, @Valid @RequestBody UpdateShoppingListRequest request) {
         ShoppingListDraft updated = shoppingListDraftService.replaceItems(id, request)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping list not found"));
         return ShoppingListResponse.from(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String id) {
+        boolean deleted = shoppingListDraftService.deleteById(id);
+        if (!deleted) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping list not found");
+        }
     }
 
     private Recipe toDomainRecipe(com.appcompras.recipe.Recipe recipe) {

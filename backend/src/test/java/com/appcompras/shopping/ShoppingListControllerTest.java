@@ -1,6 +1,7 @@
 package com.appcompras.shopping;
 
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -140,6 +141,61 @@ class ShoppingListControllerTest {
     }
 
     @Test
+    void getShoppingListsReturnsOrderedDrafts() throws Exception {
+        String recipeA = createRecipeAndGetId("Rice A", "LUNCH", "rice", 1, "CUP");
+        String planA = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeA,
+                null, null, null
+        );
+        String firstId = generateShoppingListAndGetId(planA);
+
+        String recipeB = createRecipeAndGetId("Rice B", "DINNER", "rice", 200, "GRAM");
+        String planB = createPlanAndGetId(
+                "2026-02-16",
+                "WEEK",
+                "2026-02-17", "DINNER", recipeB,
+                null, null, null
+        );
+        String secondId = generateShoppingListAndGetId(planB);
+
+        MvcResult listResult = mockMvc.perform(get("/api/shopping-lists"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andReturn();
+
+        java.util.List<String> ids = JsonPath.read(listResult.getResponse().getContentAsString(), "$[*].id");
+        int firstIndex = ids.indexOf(firstId);
+        int secondIndex = ids.indexOf(secondId);
+        Assertions.assertTrue(secondIndex >= 0 && firstIndex >= 0 && secondIndex < firstIndex);
+    }
+
+    @Test
+    void deleteShoppingListReturnsNoContentAndRemovesDraft() throws Exception {
+        String recipeId = createRecipeAndGetId("Rice", "LUNCH", "rice", 1, "CUP");
+        String planId = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeId,
+                null, null, null
+        );
+        String shoppingListId = generateShoppingListAndGetId(planId);
+
+        mockMvc.perform(delete("/api/shopping-lists/{id}", shoppingListId))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/shopping-lists/{id}", shoppingListId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteShoppingListReturnsNotFoundWhenMissing() throws Exception {
+        mockMvc.perform(delete("/api/shopping-lists/{id}", "missing-id"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void generateShoppingListReturnsNotFoundWhenPlanMissing() throws Exception {
         mockMvc.perform(post("/api/shopping-lists/generate")
                         .param("planId", "missing-plan"))
@@ -216,6 +272,15 @@ class ShoppingListControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated())
+                .andReturn();
+
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+    }
+
+    private String generateShoppingListAndGetId(String planId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId))
+                .andExpect(status().isOk())
                 .andReturn();
 
         return JsonPath.read(result.getResponse().getContentAsString(), "$.id");
