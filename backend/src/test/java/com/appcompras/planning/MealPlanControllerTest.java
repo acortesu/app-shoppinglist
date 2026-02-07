@@ -1,6 +1,7 @@
 package com.appcompras.planning;
 
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -9,8 +10,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.List;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,6 +65,89 @@ class MealPlanControllerTest {
     @Test
     void getPlanByIdReturnsNotFoundWhenMissing() throws Exception {
         mockMvc.perform(get("/api/plans/{id}", "missing-id"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getPlansReturnsOrderedList() throws Exception {
+        String recipeId = createRecipeAndGetId("LUNCH");
+        String firstPlanId = createPlanAndGetId(recipeId, "2026-03-01", "WEEK", "2026-03-02", "LUNCH");
+        String secondPlanId = createPlanAndGetId(recipeId, "2026-03-10", "WEEK", "2026-03-11", "LUNCH");
+
+        MvcResult result = mockMvc.perform(get("/api/plans"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andReturn();
+
+        List<String> ids = JsonPath.read(result.getResponse().getContentAsString(), "$[*].id");
+        int firstIndex = ids.indexOf(firstPlanId);
+        int secondIndex = ids.indexOf(secondPlanId);
+        Assertions.assertTrue(secondIndex >= 0 && firstIndex >= 0 && secondIndex < firstIndex);
+    }
+
+    @Test
+    void updatePlanReplacesSlotsAndUpdatesRecipeUsage() throws Exception {
+        String lunchRecipeId = createRecipeAndGetId("LUNCH");
+        String dinnerRecipeId = createRecipeAndGetId("DINNER");
+        String planId = createPlanAndGetId(lunchRecipeId, "2026-04-01", "WEEK", "2026-04-02", "LUNCH");
+
+        String payload = """
+                {
+                  "startDate": "2026-04-01",
+                  "period": "WEEK",
+                  "slots": [
+                    { "date": "2026-04-03", "mealType": "DINNER", "recipeId": "%s" }
+                  ]
+                }
+                """.formatted(dinnerRecipeId);
+
+        mockMvc.perform(put("/api/plans/{id}", planId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(planId))
+                .andExpect(jsonPath("$.slots[0].recipeId").value(dinnerRecipeId))
+                .andExpect(jsonPath("$.updatedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/recipes/{id}", dinnerRecipeId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usageCount").value(1));
+    }
+
+    @Test
+    void updatePlanReturnsNotFoundWhenMissing() throws Exception {
+        String recipeId = createRecipeAndGetId("LUNCH");
+        String payload = """
+                {
+                  "startDate": "2026-04-01",
+                  "period": "WEEK",
+                  "slots": [
+                    { "date": "2026-04-02", "mealType": "LUNCH", "recipeId": "%s" }
+                  ]
+                }
+                """.formatted(recipeId);
+
+        mockMvc.perform(put("/api/plans/{id}", "missing-id")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletePlanReturnsNoContent() throws Exception {
+        String recipeId = createRecipeAndGetId("LUNCH");
+        String planId = createPlanAndGetId(recipeId, "2026-05-01", "WEEK", "2026-05-02", "LUNCH");
+
+        mockMvc.perform(delete("/api/plans/{id}", planId))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/plans/{id}", planId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletePlanReturnsNotFoundWhenMissing() throws Exception {
+        mockMvc.perform(delete("/api/plans/{id}", "missing-id"))
                 .andExpect(status().isNotFound());
     }
 
@@ -137,6 +225,27 @@ class MealPlanControllerTest {
                                   ]
                                 }
                                 """.formatted(type)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+    }
+
+    private String createPlanAndGetId(String recipeId, String startDate, String period, String slotDate, String mealType)
+            throws Exception {
+        String payload = """
+                {
+                  "startDate": "%s",
+                  "period": "%s",
+                  "slots": [
+                    { "date": "%s", "mealType": "%s", "recipeId": "%s" }
+                  ]
+                }
+                """.formatted(startDate, period, slotDate, mealType, recipeId);
+
+        MvcResult result = mockMvc.perform(post("/api/plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
                 .andExpect(status().isCreated())
                 .andReturn();
 
