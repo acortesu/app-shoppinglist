@@ -1,0 +1,565 @@
+{
+  "ingredients": [
+    {
+      "id": "rice",
+      "displayName": "Rice",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "arroz",
+        "arroz blanco",
+        "arroz integral",
+        "arroz cocido",
+        "grano de arroz",
+        "rice"
+      ]
+    },
+    {
+      "id": "beans",
+      "displayName": "Beans",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "frijoles",
+        "frijol",
+        "frijoles negros",
+        "frijoles rojos",
+        "frijoles blancos",
+        "frijoles tiernos",
+        "frijol negro",
+        "frijol rojo"
+      ]
+    },
+    {
+      "id": "chicken",
+      "displayName": "Chicken",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "pollo",
+        "pechuga de pollo",
+        "muslo de pollo",
+        "alitas",
+        "alitas de pollo",
+        "pollo entero",
+        "pollo deshuesado",
+        "pollo con hueso",
+        "pollo molido",
+        "pollo en cuadritos",
+        "pollo trozado",
+        "carne de pollo",
+        "carne de pollo deshuesada",
+        "carne de pollo con hueso",
+        "carne de pollo molida",
+        "carne de pollo en cuadritos",
+        "carne de pollo trozada"
+      ]
+    },
+    {
+      "id": "beef",
+      "displayName": "Beef",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "res",
+        "carne de res",
+        "carne de res molida",
+        "bistec de res",
+        "lomo de res",
+        "posta de res",
+        "carne para mechar",
+        "carne para guisar"
+      ]
+    },
+    {
+      "id": "pork",
+      "displayName": "Pork",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "cerdo",
+        "carne de cerdo",
+        "lomo de cerdo",
+        "chuleta de cerdo",
+        "costilla de cerdo",
+        "posta de cerdo",
+        "cerdo molido"
+      ]
+    },
+    {
+      "id": "fish",
+      "displayName": "Fish",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "pescado",
+        "filete de pescado",
+        "pescado entero",
+        "filete de tilapia",
+        "filete de corvina"
+      ]
+    },
+    {
+      "id": "egg",
+      "displayName": "Egg",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 12.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "huevo",
+        "huevos",
+        "huevo entero",
+        "huevo grande",
+        "huevo pequeno"
+      ]
+    },
+    {
+      "id": "milk",
+      "displayName": "Milk",
+      "measurementType": "VOLUME",
+      "allowedUnits": ["MILLILITER", "LITER", "CUP", "TABLESPOON", "TEASPOON"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "LITER",
+      "aliases": [
+        "leche",
+        "leche entera",
+        "leche descremada",
+        "leche semidescremada"
+      ]
+    },
+    {
+      "id": "natilla",
+      "displayName": "Natilla",
+      "measurementType": "VOLUME",
+      "allowedUnits": ["MILLILITER", "LITER", "TABLESPOON", "TEASPOON"],
+      "suggestedPurchaseAmount": 250.0,
+      "suggestedPurchaseUnit": "MILLILITER",
+      "aliases": [
+        "natilla",
+        "crema agria",
+        "sour cream"
+      ]
+    },
+    {
+      "id": "cheese",
+      "displayName": "Cheese",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 500.0,
+      "suggestedPurchaseUnit": "GRAM",
+      "aliases": [
+        "queso",
+        "queso fresco",
+        "queso rallado",
+        "queso tierno",
+        "queso semiduro",
+        "queso mozzarella",
+        "queso cheddar",
+        "queso palmito"
+      ]
+    },
+    {
+      "id": "oil",
+      "displayName": "Oil",
+      "measurementType": "VOLUME",
+      "allowedUnits": ["MILLILITER", "LITER", "TABLESPOON", "TEASPOON"],
+      "suggestedPurchaseAmount": 500.0,
+      "suggestedPurchaseUnit": "MILLILITER",
+      "aliases": [
+        "aceite",
+        "aceite vegetal",
+        "aceite de oliva",
+        "aceite de canola",
+        "aceite de maiz",
+        "aceite de girasol",
+        "aceite de coco",
+        "aceite de aguacate",
+        "aceite de sésamo",
+        "aceite de oliva extra virgen"
+      ]
+    },
+    {
+      "id": "butter",
+      "displayName": "Butter",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 250.0,
+      "suggestedPurchaseUnit": "GRAM",
+      "aliases": [
+        "mantequilla",
+        "mantequilla con sal",
+        "mantequilla sin sal",
+        "mantequilla light",
+        "margarina",
+        "margarina con sal",
+        "margarina sin sal",
+        "margarina light"
+      ]
+    },
+    {
+      "id": "salt",
+      "displayName": "Salt",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM", "PINCH", "TO_TASTE"],
+      "suggestedPurchaseAmount": 500.0,
+      "suggestedPurchaseUnit": "GRAM",
+      "aliases": [
+        "sal",
+        "sal fina",
+        "sal gruesa",
+        "sal marina",
+        "sal himalaya",
+        "sal kosher"
+      ]
+    },
+    {
+      "id": "black-pepper",
+      "displayName": "Black Pepper",
+      "measurementType": "TO_TASTE",
+      "allowedUnits": ["TO_TASTE"],
+      "suggestedPurchaseAmount": 0.0,
+      "suggestedPurchaseUnit": "TO_TASTE",
+      "aliases": [
+        "pimienta negra",
+        "pimienta negra molida",
+        "pimienta"
+      ]
+    },
+    {
+      "id": "oregano",
+      "displayName": "Oregano",
+      "measurementType": "TO_TASTE",
+      "allowedUnits": ["TO_TASTE"],
+      "suggestedPurchaseAmount": 0.0,
+      "suggestedPurchaseUnit": "TO_TASTE",
+      "aliases": [
+        "oregano",
+        "oregano seco",
+        "oregano molido"
+      ]
+    },
+    {
+      "id": "onion",
+      "displayName": "Onion",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "cebolla",
+        "cebolla blanca",
+        "cebolla morada",
+        "cebolla amarilla",
+        "cebolla dulce"
+      ]
+    },
+    {
+      "id": "garlic",
+      "displayName": "Garlic",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "ajo",
+        "diente de ajo",
+        "dientes de ajo"
+      ]
+    },
+    {
+      "id": "sweet-pepper",
+      "displayName": "Sweet Pepper",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "chile dulce",
+        "chile dulce rojo",
+        "chile dulce verde",
+        "chile dulce amarillo",
+        "pimiento dulce"
+      ]
+    },
+    {
+      "id": "tomato",
+      "displayName": "Tomato",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "tomate",
+        "tomate rojo",
+        "tomate maduro",
+        "jitomate"
+      ]
+    },
+    {
+      "id": "cilantro",
+      "displayName": "Cilantro",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "cilantro",
+        "culantro",
+        "culantro coyote",
+        "coriander"
+      ]
+    },
+    {
+      "id": "carrot",
+      "displayName": "Carrot",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "zanahoria",
+        "zanahoria mediana",
+        "zanahoria grande"
+      ]
+    },
+    {
+      "id": "potato",
+      "displayName": "Potato",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "papa",
+        "patata",
+        "papa blanca",
+        "papa roja"
+      ]
+    },
+    {
+      "id": "cassava",
+      "displayName": "Cassava",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "yuca",
+        "yuca fresca",
+        "yuca pelada"
+      ]
+    },
+    {
+      "id": "plantain-green",
+      "displayName": "Green Plantain",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "platano verde",
+        "platano verde entero",
+        "platano para freir"
+      ]
+    },
+    {
+      "id": "plantain-ripe",
+      "displayName": "Ripe Plantain",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "platano maduro",
+        "platano maduro entero",
+        "platano para maduro"
+      ]
+    },
+    {
+      "id": "banana",
+      "displayName": "Banana",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "banana",
+        "banano"
+      ]
+    },
+    {
+      "id": "avocado",
+      "displayName": "Avocado",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "aguacate",
+        "aguacate hass",
+        "aguacate criollo"
+      ]
+    },
+    {
+      "id": "lettuce",
+      "displayName": "Lettuce",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "lechuga",
+        "lechuga romana",
+        "lechuga americana"
+      ]
+    },
+    {
+      "id": "lime",
+      "displayName": "Lime",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "limon",
+        "limon criollo",
+        "limon sutil"
+      ]
+    },
+    {
+      "id": "orange",
+      "displayName": "Orange",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "naranja",
+        "naranja dulce",
+        "naranja de mesa"
+      ]
+    },
+    {
+      "id": "sugar",
+      "displayName": "Sugar",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "azucar",
+        "azucar blanca",
+        "azucar refinada",
+        "azucar granulada"
+      ]
+    },
+    {
+      "id": "brown-sugar",
+      "displayName": "Brown Sugar",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 500.0,
+      "suggestedPurchaseUnit": "GRAM",
+      "aliases": [
+        "azucar morena",
+        "azucar negra",
+        "tapa dulce",
+        "panela"
+      ]
+    },
+    {
+      "id": "corn-flour",
+      "displayName": "Corn Flour",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "harina de maiz",
+        "masa de maiz",
+        "harina de maiz nixtamalizada",
+        "masa harina"
+      ]
+    },
+    {
+      "id": "wheat-flour",
+      "displayName": "Wheat Flour",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "KILOGRAM",
+      "aliases": [
+        "harina de trigo",
+        "harina blanca",
+        "harina todo uso"
+      ]
+    },
+    {
+      "id": "coffee-ground",
+      "displayName": "Ground Coffee",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "suggestedPurchaseAmount": 500.0,
+      "suggestedPurchaseUnit": "GRAM",
+      "aliases": [
+        "cafe",
+        "cafe molido",
+        "cafe tostado molido",
+        "cafe para chorrear"
+      ]
+    },
+    {
+      "id": "salsa-lizano",
+      "displayName": "Salsa Lizano",
+      "measurementType": "VOLUME",
+      "allowedUnits": ["MILLILITER", "LITER", "TABLESPOON", "TEASPOON"],
+      "suggestedPurchaseAmount": 280.0,
+      "suggestedPurchaseUnit": "MILLILITER",
+      "aliases": [
+        "lizano",
+        "salsa lizano",
+        "salsa inglesa lizano"
+      ]
+    },
+    {
+      "id": "tortilla-corn",
+      "displayName": "Corn Tortilla",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 10.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "tortilla de maiz",
+        "tortilla palmeada",
+        "tortilla de masa"
+      ]
+    },
+    {
+      "id": "bread",
+      "displayName": "Bread",
+      "measurementType": "UNIT",
+      "allowedUnits": ["PIECE"],
+      "suggestedPurchaseAmount": 1.0,
+      "suggestedPurchaseUnit": "PIECE",
+      "aliases": [
+        "pan",
+        "pan cuadrado",
+        "pan tajado",
+        "bollo de pan"
+      ]
+    }
+  ]
+}

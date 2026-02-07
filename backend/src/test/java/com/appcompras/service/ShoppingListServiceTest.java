@@ -5,6 +5,7 @@ import com.appcompras.domain.Recipe;
 import com.appcompras.domain.RecipeIngredient;
 import com.appcompras.domain.ShoppingListItem;
 import com.appcompras.domain.Unit;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class ShoppingListServiceTest {
 
     @BeforeEach
     void setUp() {
-        IngredientCatalogService catalogService = new IngredientCatalogService();
+        IngredientCatalogService catalogService = new IngredientCatalogService(new ObjectMapper());
         UnitConversionService conversionService = new UnitConversionService(catalogService);
         shoppingListService = new ShoppingListService(catalogService, conversionService);
     }

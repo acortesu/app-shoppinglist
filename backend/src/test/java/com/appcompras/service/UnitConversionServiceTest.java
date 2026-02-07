@@ -1,6 +1,7 @@
 package com.appcompras.service;
 
 import com.appcompras.domain.Unit;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +13,7 @@ class UnitConversionServiceTest {
 
     @BeforeEach
     void setUp() {
-        IngredientCatalogService catalogService = new IngredientCatalogService();
+        IngredientCatalogService catalogService = new IngredientCatalogService(new ObjectMapper());
         conversionService = new UnitConversionService(catalogService);
     }
 

@@ -3,10 +3,16 @@ package com.appcompras.service;
 import com.appcompras.domain.IngredientCatalogItem;
 import com.appcompras.domain.MeasurementType;
 import com.appcompras.domain.Unit;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.Normalizer;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -18,55 +24,15 @@ import java.util.concurrent.ConcurrentMap;
 @Service
 public class IngredientCatalogService {
 
+    private static final String SEED_FILE = "seed/ingredients-catalog-cr.json";
+
     private final ConcurrentMap<String, IngredientCatalogItem> catalog = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> aliasToIngredientId = new ConcurrentHashMap<>();
+    private final ObjectMapper objectMapper;
 
-    public IngredientCatalogService() {
-        addBaseIngredient(
-                "rice",
-                "Rice",
-                MeasurementType.WEIGHT,
-                Set.of(Unit.GRAM, Unit.KILOGRAM, Unit.CUP),
-                1.0,
-                Unit.KILOGRAM,
-                Set.of("arroz", "white rice")
-        );
-        addBaseIngredient(
-                "oil",
-                "Oil",
-                MeasurementType.VOLUME,
-                Set.of(Unit.MILLILITER, Unit.LITER, Unit.TABLESPOON, Unit.TEASPOON),
-                500.0,
-                Unit.MILLILITER,
-                Set.of("aceite")
-        );
-        addBaseIngredient(
-                "tomato",
-                "Tomato",
-                MeasurementType.UNIT,
-                Set.of(Unit.PIECE),
-                1.0,
-                Unit.PIECE,
-                Set.of("tomate")
-        );
-        addBaseIngredient(
-                "salt",
-                "Salt",
-                MeasurementType.WEIGHT,
-                Set.of(Unit.GRAM, Unit.KILOGRAM, Unit.PINCH, Unit.TO_TASTE),
-                500.0,
-                Unit.GRAM,
-                Set.of("sal")
-        );
-        addBaseIngredient(
-                "egg",
-                "Egg",
-                MeasurementType.UNIT,
-                Set.of(Unit.PIECE),
-                12.0,
-                Unit.PIECE,
-                Set.of("huevo", "huevos")
-        );
+    public IngredientCatalogService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+        loadSeedFromResource(SEED_FILE);
     }
 
     public Optional<IngredientCatalogItem> findById(String ingredientId) {
@@ -166,33 +132,87 @@ public class IngredientCatalogService {
         };
 
         catalog.put(id, item);
-        aliasToIngredientId.put(normalizedName, id);
-        aliasToIngredientId.put(normalizeAlias(id), id);
+        addAlias(id, normalizedName);
+        addAlias(id, id);
+        addAlias(id, trimmedName);
         return item;
     }
 
-    private void addBaseIngredient(
-            String id,
-            String displayName,
-            MeasurementType measurementType,
-            Set<Unit> allowedUnits,
-            double suggestedPurchaseAmount,
-            Unit suggestedPurchaseUnit,
-            Set<String> aliases
-    ) {
+    private void loadSeedFromResource(String resourcePath) {
+        try (InputStream inputStream = new ClassPathResource(resourcePath).getInputStream()) {
+            JsonNode root = objectMapper.readTree(inputStream);
+            JsonNode ingredientsNode = root.path("ingredients");
+            if (!ingredientsNode.isArray()) {
+                throw new IllegalStateException("Invalid ingredient seed format: missing ingredients array");
+            }
+
+            for (JsonNode ingredientNode : ingredientsNode) {
+                registerSeedIngredient(ingredientNode);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load ingredient seed file: " + resourcePath, e);
+        }
+    }
+
+    private void registerSeedIngredient(JsonNode node) {
+        String id = requiredText(node, "id");
+        String displayName = requiredText(node, "displayName");
+        MeasurementType measurementType = MeasurementType.valueOf(requiredText(node, "measurementType"));
+        double suggestedPurchaseAmount = node.path("suggestedPurchaseAmount").asDouble();
+        Unit suggestedPurchaseUnit = Unit.valueOf(requiredText(node, "suggestedPurchaseUnit"));
+
+        Set<Unit> allowedUnits = new HashSet<>();
+        JsonNode allowedUnitsNode = node.path("allowedUnits");
+        if (!allowedUnitsNode.isArray() || allowedUnitsNode.isEmpty()) {
+            throw new IllegalStateException("Ingredient seed requires non-empty allowedUnits for id: " + id);
+        }
+        for (JsonNode unitNode : allowedUnitsNode) {
+            allowedUnits.add(Unit.valueOf(unitNode.asText()));
+        }
+
         IngredientCatalogItem item = new IngredientCatalogItem(
                 id,
                 displayName,
                 measurementType,
-                allowedUnits,
+                Set.copyOf(allowedUnits),
                 suggestedPurchaseAmount,
                 suggestedPurchaseUnit
         );
+
         catalog.put(id, item);
-        aliasToIngredientId.put(normalizeAlias(id), id);
-        aliasToIngredientId.put(normalizeAlias(displayName), id);
-        for (String alias : aliases) {
-            aliasToIngredientId.put(normalizeAlias(alias), id);
+        addAlias(id, id);
+        addAlias(id, displayName);
+
+        JsonNode aliasesNode = node.path("aliases");
+        if (aliasesNode.isArray()) {
+            for (JsonNode aliasNode : aliasesNode) {
+                addAlias(id, aliasNode.asText());
+            }
+        }
+    }
+
+    private String requiredText(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull() || value.asText().isBlank()) {
+            throw new IllegalStateException("Ingredient seed missing required field: " + field);
+        }
+        return value.asText();
+    }
+
+    private void addAlias(String ingredientId, String alias) {
+        if (alias == null || alias.isBlank()) {
+            return;
+        }
+        String normalizedAlias = normalizeAlias(alias);
+        if (normalizedAlias.isBlank()) {
+            return;
+        }
+
+        String existingIngredientId = aliasToIngredientId.putIfAbsent(normalizedAlias, ingredientId);
+        if (existingIngredientId != null && !existingIngredientId.equals(ingredientId)) {
+            throw new IllegalStateException(
+                    "Ambiguous alias '" + alias + "' maps to both '" + existingIngredientId + "' and '" + ingredientId + "'"
+            );
         }
     }
 
