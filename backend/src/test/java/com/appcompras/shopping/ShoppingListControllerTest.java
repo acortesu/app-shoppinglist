@@ -10,7 +10,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,7 +24,7 @@ class ShoppingListControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    void generateShoppingListFromPlanAggregatesIngredients() throws Exception {
+    void generateShoppingListFromPlanCreatesEditableDraft() throws Exception {
         String recipeRiceCup = createRecipeAndGetId("Rice cup", "LUNCH", "rice", 1, "CUP");
         String recipeRiceGrams = createRecipeAndGetId("Rice grams", "DINNER", "rice", 200, "GRAM");
 
@@ -33,12 +35,108 @@ class ShoppingListControllerTest {
                 "2026-02-11", "DINNER", recipeRiceGrams
         );
 
-        mockMvc.perform(post("/api/shopping-lists/generate")
+        MvcResult result = mockMvc.perform(post("/api/shopping-lists/generate")
                         .param("planId", planId))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.planId").value(planId))
-                .andExpect(jsonPath("$.items[?(@.ingredientId=='rice')].requiredBaseAmount").value(org.hamcrest.Matchers.hasItem(380.0)))
-                .andExpect(jsonPath("$.items[?(@.ingredientId=='rice')].baseUnit").value(org.hamcrest.Matchers.hasItem("GRAM")));
+                .andExpect(jsonPath("$.items[?(@.ingredientId=='rice')].quantity").value(org.hamcrest.Matchers.hasItem(380.0)))
+                .andExpect(jsonPath("$.items[?(@.ingredientId=='rice')].unit").value(org.hamcrest.Matchers.hasItem("GRAM")))
+                .andReturn();
+
+        String shoppingListId = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(get("/api/shopping-lists/{id}", shoppingListId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(shoppingListId));
+    }
+
+    @Test
+    void updateShoppingListCanModifyDeleteAndAddManualItems() throws Exception {
+        String recipeRice = createRecipeAndGetId("Rice", "LUNCH", "rice", 1, "CUP");
+        String planId = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeRice,
+                null, null, null
+        );
+
+        MvcResult generated = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String shoppingListId = JsonPath.read(generated.getResponse().getContentAsString(), "$.id");
+        String firstItemId = JsonPath.read(generated.getResponse().getContentAsString(), "$.items[0].id");
+
+        String updatePayload = """
+                {
+                  "items": [
+                    {
+                      "id": "%s",
+                      "ingredientId": "rice",
+                      "name": "Rice",
+                      "quantity": 500,
+                      "unit": "GRAM",
+                      "suggestedPackages": 1,
+                      "packageAmount": 1,
+                      "packageUnit": "KILOGRAM",
+                      "manual": false
+                    },
+                    {
+                      "name": "Papel higienico",
+                      "quantity": 2,
+                      "unit": "pack",
+                      "manual": true
+                    }
+                  ]
+                }
+                """.formatted(firstItemId);
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].quantity").value(500.0))
+                .andExpect(jsonPath("$.items[1].name").value("Papel higienico"))
+                .andExpect(jsonPath("$.items[1].manual").value(true));
+    }
+
+    @Test
+    void updateShoppingListRejectsInvalidQuantity() throws Exception {
+        String recipeRice = createRecipeAndGetId("Rice", "LUNCH", "rice", 1, "CUP");
+        String planId = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeRice,
+                null, null, null
+        );
+
+        MvcResult generated = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String shoppingListId = JsonPath.read(generated.getResponse().getContentAsString(), "$.id");
+
+        String payload = """
+                {
+                  "items": [
+                    {
+                      "name": "Rice",
+                      "quantity": 0,
+                      "unit": "GRAM",
+                      "manual": false
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
     }
 
     @Test

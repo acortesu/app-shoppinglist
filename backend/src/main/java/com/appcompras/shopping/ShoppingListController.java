@@ -7,11 +7,16 @@ import com.appcompras.planning.MealPlanService;
 import com.appcompras.recipe.RecipeService;
 import com.appcompras.service.ShoppingListService;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -22,19 +27,22 @@ public class ShoppingListController {
     private final MealPlanService mealPlanService;
     private final RecipeService recipeService;
     private final ShoppingListService shoppingListService;
+    private final ShoppingListDraftService shoppingListDraftService;
 
     public ShoppingListController(
             MealPlanService mealPlanService,
             RecipeService recipeService,
-            ShoppingListService shoppingListService
+            ShoppingListService shoppingListService,
+            ShoppingListDraftService shoppingListDraftService
     ) {
         this.mealPlanService = mealPlanService;
         this.recipeService = recipeService;
         this.shoppingListService = shoppingListService;
+        this.shoppingListDraftService = shoppingListDraftService;
     }
 
     @PostMapping("/generate")
-    public GeneratedShoppingListResponse generate(@RequestParam String planId) {
+    public ShoppingListResponse generate(@RequestParam String planId) {
         MealPlan plan = mealPlanService.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan not found"));
 
@@ -44,7 +52,26 @@ public class ShoppingListController {
                         .orElseThrow(() -> new IllegalArgumentException("Recipe not found for slot: " + slot.recipeId())))
                 .toList();
 
-        return new GeneratedShoppingListResponse(planId, shoppingListService.generateFromRecipes(recipes));
+        ShoppingListDraft draft = shoppingListDraftService.createFromGenerated(
+                planId,
+                shoppingListService.generateFromRecipes(recipes)
+        );
+
+        return ShoppingListResponse.from(draft);
+    }
+
+    @GetMapping("/{id}")
+    public ShoppingListResponse getById(@PathVariable String id) {
+        ShoppingListDraft draft = shoppingListDraftService.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping list not found"));
+        return ShoppingListResponse.from(draft);
+    }
+
+    @PutMapping("/{id}")
+    public ShoppingListResponse update(@PathVariable String id, @Valid @RequestBody UpdateShoppingListRequest request) {
+        ShoppingListDraft updated = shoppingListDraftService.replaceItems(id, request)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping list not found"));
+        return ShoppingListResponse.from(updated);
     }
 
     private Recipe toDomainRecipe(com.appcompras.recipe.Recipe recipe) {
