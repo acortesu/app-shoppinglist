@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,6 +72,51 @@ class RecipeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].id").isNotEmpty());
+    }
+
+    @Test
+    void updateRecipeReturnsUpdatedRecipe() throws Exception {
+        String id = createRecipeAndGetId();
+
+        String payload = """
+                {
+                  "name": "Arroz con huevo",
+                  "type": "DINNER",
+                  "ingredients": [
+                    { "ingredientId": "rice", "quantity": 200, "unit": "GRAM" },
+                    { "ingredientId": "egg", "quantity": 2, "unit": "PIECE" }
+                  ],
+                  "notes": "actualizada"
+                }
+                """;
+
+        mockMvc.perform(put("/api/recipes/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.name").value("Arroz con huevo"))
+                .andExpect(jsonPath("$.type").value("DINNER"))
+                .andExpect(jsonPath("$.ingredients[1].ingredientId").value("egg"))
+                .andExpect(jsonPath("$.notes").value("actualizada"));
+    }
+
+    @Test
+    void updateRecipeReturnsNotFoundWhenMissing() throws Exception {
+        String payload = """
+                {
+                  "name": "Arroz con huevo",
+                  "type": "DINNER",
+                  "ingredients": [
+                    { "ingredientId": "rice", "quantity": 200, "unit": "GRAM" }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/recipes/{id}", "missing-id")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isNotFound());
     }
 
     @Test

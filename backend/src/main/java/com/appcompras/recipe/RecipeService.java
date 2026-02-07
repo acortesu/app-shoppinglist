@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 
 @Service
 public class RecipeService {
@@ -47,5 +48,32 @@ public class RecipeService {
 
     public List<Recipe> findAll() {
         return recipes.values().stream().toList();
+    }
+
+    public Optional<Recipe> update(String id, CreateRecipeRequest request) {
+        BiFunction<String, Recipe, Recipe> updater = (ignored, existing) -> {
+            Instant now = Instant.now();
+
+            List<RecipeIngredient> ingredients = request.ingredients().stream()
+                    .map(i -> new RecipeIngredient(i.ingredientId(), i.quantity(), i.unit()))
+                    .toList();
+
+            return new Recipe(
+                    existing.id(),
+                    request.name().trim(),
+                    request.type(),
+                    ingredients,
+                    request.preparation(),
+                    request.notes(),
+                    request.tags() == null ? Set.of() : request.tags(),
+                    existing.usageCount(),
+                    existing.lastUsedAt(),
+                    existing.createdAt(),
+                    now
+            );
+        };
+
+        Recipe updated = recipes.computeIfPresent(id, updater);
+        return Optional.ofNullable(updated);
     }
 }
