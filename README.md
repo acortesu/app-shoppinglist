@@ -4,10 +4,10 @@ Proyecto portfolio DevOps con foco en un MVP usable para planificación de comid
 
 ## Objetivo MVP
 
-- CRUD de recetas
+- CRUD de recetas.
 - Planificación semanal o quincenal (breakfast/lunch/dinner)
 - Generación automática de shopping list (suma + normalización + conversión)
-- Shopping list editable por el usuario
+- Shopping list editable por el usuario.
 
 ## Criterios de diseño
 
