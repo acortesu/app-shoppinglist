@@ -3,6 +3,7 @@ package com.appcompras.ingredient;
 import com.appcompras.domain.IngredientCatalogItem;
 import com.appcompras.service.IngredientCatalogService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -29,7 +30,10 @@ public class IngredientController {
 
     @GetMapping
     @Operation(summary = "List ingredient catalog")
-    public List<IngredientResponse> listIngredients(@RequestParam(required = false) String q) {
+    public List<IngredientResponse> listIngredients(
+            @Parameter(description = "Optional search text by id/name/alias", example = "arroz")
+            @RequestParam(required = false) String q
+    ) {
         return ingredientCatalogService.list(q).stream()
                 .map(IngredientResponse::from)
                 .toList();

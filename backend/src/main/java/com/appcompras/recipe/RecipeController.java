@@ -2,6 +2,7 @@ package com.appcompras.recipe;
 
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +48,10 @@ public class RecipeController {
 
     @GetMapping
     @Operation(summary = "List recipes")
-    public List<RecipeResponse> getRecipes(@RequestParam(required = false) MealType type) {
+    public List<RecipeResponse> getRecipes(
+            @Parameter(description = "Optional meal type filter", example = "DINNER")
+            @RequestParam(required = false) MealType type
+    ) {
         return recipeService.findAll(type).stream()
                 .map(RecipeResponse::from)
                 .toList();

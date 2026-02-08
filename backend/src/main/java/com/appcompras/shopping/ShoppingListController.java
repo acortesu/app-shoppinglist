@@ -8,6 +8,7 @@ import com.appcompras.planning.MealPlanService;
 import com.appcompras.recipe.RecipeService;
 import com.appcompras.service.ShoppingListService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,7 +52,9 @@ public class ShoppingListController {
     @PostMapping("/generate")
     @Operation(summary = "Generate shopping list draft from plan")
     public ShoppingListResponse generate(
+            @Parameter(description = "Meal plan id", example = "3f84c4ce-62bb-4cf5-a42e-19a5df1709ce")
             @RequestParam String planId,
+            @Parameter(description = "Optional idempotency key to avoid duplicate drafts", example = "shop-gen-20260208-001")
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         MealPlan plan = mealPlanService.findById(planId)
