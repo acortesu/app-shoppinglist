@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentMap;
 public class IngredientCatalogService {
 
     private static final String SEED_FILE = "seed/ingredients-catalog-cr.json";
+    private static final int MIN_SUPPORTED_CATALOG_VERSION = 1;
 
     private final ConcurrentMap<String, IngredientCatalogItem> seedCatalog = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> seedAliasToIngredientId = new ConcurrentHashMap<>();
@@ -39,6 +40,7 @@ public class IngredientCatalogService {
     private final ObjectMapper objectMapper;
     private final IngredientCustomRepository ingredientCustomRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final int catalogVersion;
 
     @Autowired
     public IngredientCatalogService(
@@ -49,14 +51,18 @@ public class IngredientCatalogService {
         this.objectMapper = objectMapper;
         this.ingredientCustomRepository = ingredientCustomRepository;
         this.currentUserProvider = currentUserProvider;
-        loadSeedFromResource(SEED_FILE);
+        this.catalogVersion = loadSeedFromResource(SEED_FILE);
     }
 
     public IngredientCatalogService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         this.ingredientCustomRepository = null;
         this.currentUserProvider = null;
-        loadSeedFromResource(SEED_FILE);
+        this.catalogVersion = loadSeedFromResource(SEED_FILE);
+    }
+
+    public int catalogVersion() {
+        return catalogVersion;
     }
 
     public Optional<IngredientCatalogItem> findById(String ingredientId) {
@@ -234,9 +240,14 @@ public class IngredientCatalogService {
         };
     }
 
-    private void loadSeedFromResource(String resourcePath) {
+    private int loadSeedFromResource(String resourcePath) {
         try (InputStream inputStream = new ClassPathResource(resourcePath).getInputStream()) {
             JsonNode root = objectMapper.readTree(inputStream);
+            int version = root.path("catalogVersion").asInt(-1);
+            if (version < MIN_SUPPORTED_CATALOG_VERSION) {
+                throw new IllegalStateException("Invalid or missing catalogVersion in seed file: " + resourcePath);
+            }
+
             JsonNode ingredientsNode = root.path("ingredients");
             if (!ingredientsNode.isArray()) {
                 throw new IllegalStateException("Invalid ingredient seed format: missing ingredients array");
@@ -245,6 +256,7 @@ public class IngredientCatalogService {
             for (JsonNode ingredientNode : ingredientsNode) {
                 registerSeedIngredient(ingredientNode);
             }
+            return version;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load ingredient seed file: " + resourcePath, e);
         }

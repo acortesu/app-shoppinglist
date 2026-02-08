@@ -37,6 +37,42 @@ class IngredientControllerTest {
     }
 
     @Test
+    void aliasBackwardCompatibilitySearchStillResolvesLegacyNames() throws Exception {
+        mockMvc.perform(get("/api/ingredients").param("q", "frijoles negros"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("beans"));
+
+        mockMvc.perform(get("/api/ingredients").param("q", "Pechuga de Pollo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("chicken"));
+
+        mockMvc.perform(get("/api/ingredients").param("q", "ARROZ INTEGRÁL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("rice"));
+    }
+
+    @Test
+    void recipeCreateStillAcceptsLegacyAliases() throws Exception {
+        String payload = """
+                {
+                  "name": "Frijoles con pollo",
+                  "type": "LUNCH",
+                  "ingredients": [
+                    { "ingredientId": "frijoles negros", "quantity": 300, "unit": "GRAM" },
+                    { "ingredientId": "pechuga de pollo", "quantity": 250, "unit": "GRAM" }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/api/recipes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ingredients[0].ingredientId").value("beans"))
+                .andExpect(jsonPath("$.ingredients[1].ingredientId").value("chicken"));
+    }
+
+    @Test
     void createCustomIngredientAndUseItInRecipe() throws Exception {
         MvcResult createCustom = mockMvc.perform(post("/api/ingredients/custom")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -92,6 +92,18 @@ El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompr
   - `note` (string)
   - `sortOrder` (integer)
 
+## Versionado del catálogo seed
+
+- Archivo fuente: `/Users/alo/Documents/Code/appCompras/appCompras/backend/src/main/resources/seed/ingredients-catalog-cr.json`.
+- El seed incluye `catalogVersion` (entero >= 1) y el backend valida su presencia al arrancar.
+- Regla de compatibilidad recomendada:
+  - no eliminar aliases existentes si ya se usaron en recetas reales.
+  - si cambia naming, agregar alias nuevo y mantener alias legacy.
+  - subir `catalogVersion` cuando se haga un cambio relevante en catálogo.
+- Cobertura de regresión:
+  - `IngredientSeedVersionTest` valida metadatos mínimos del seed.
+  - `IngredientControllerTest` valida aliases legacy (`frijoles negros`, `pechuga de pollo`, `arroz integral`).
+
 ## Observabilidad
 
 - Swagger UI: `/swagger-ui.html`
