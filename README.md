@@ -114,7 +114,11 @@ El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompr
 ## CI
 
 - Pipeline backend con tests en `.github/workflows/backend-ci.yml`.
-- Corre en push/PR contra `master` y ejecuta `gradle --no-daemon test` en `backend`.
+- Corre en push/PR contra `master` con dos jobs separados:
+  - `backend-unit`: tests de aplicación/unidad.
+  - `backend-integration-postgres`: flujo E2E con Testcontainers + PostgreSQL.
+- Recomendado en GitHub branch protection:
+  - marcar ambos checks (`backend-unit`, `backend-integration-postgres`) como requeridos para merge.
 
 ## Próximos hitos
 
