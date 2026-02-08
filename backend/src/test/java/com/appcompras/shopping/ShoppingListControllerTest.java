@@ -248,6 +248,68 @@ class ShoppingListControllerTest {
         Assertions.assertEquals(firstId, secondId);
     }
 
+    @Test
+    void generateShoppingListWithDifferentIdempotencyKeysCreatesDifferentDrafts() throws Exception {
+        String recipeId = createRecipeAndGetId("Rice", "LUNCH", "rice", 1, "CUP");
+        String planId = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeId,
+                null, null, null
+        );
+
+        MvcResult first = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId)
+                        .header("Idempotency-Key", "gen-123-a"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult second = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId)
+                        .header("Idempotency-Key", "gen-123-b"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String firstId = JsonPath.read(first.getResponse().getContentAsString(), "$.id");
+        String secondId = JsonPath.read(second.getResponse().getContentAsString(), "$.id");
+        Assertions.assertNotEquals(firstId, secondId);
+    }
+
+    @Test
+    void generateShoppingListWithSameIdempotencyKeyButDifferentPlansCreatesDifferentDrafts() throws Exception {
+        String recipeOne = createRecipeAndGetId("Rice 1", "LUNCH", "rice", 1, "CUP");
+        String recipeTwo = createRecipeAndGetId("Rice 2", "DINNER", "rice", 200, "GRAM");
+
+        String planOne = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeOne,
+                null, null, null
+        );
+        String planTwo = createPlanAndGetId(
+                "2026-02-16",
+                "WEEK",
+                "2026-02-17", "DINNER", recipeTwo,
+                null, null, null
+        );
+
+        MvcResult first = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planOne)
+                        .header("Idempotency-Key", "shared-key"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult second = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planTwo)
+                        .header("Idempotency-Key", "shared-key"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String firstId = JsonPath.read(first.getResponse().getContentAsString(), "$.id");
+        String secondId = JsonPath.read(second.getResponse().getContentAsString(), "$.id");
+        Assertions.assertNotEquals(firstId, secondId);
+    }
+
     private String createRecipeAndGetId(String name, String type, String ingredientId, double quantity, String unit)
             throws Exception {
         String payload = """

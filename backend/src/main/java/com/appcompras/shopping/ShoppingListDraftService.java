@@ -2,6 +2,7 @@ package com.appcompras.shopping;
 
 import com.appcompras.domain.ShoppingListItem;
 import com.appcompras.security.CurrentUserProvider;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +55,22 @@ public class ShoppingListDraftService {
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
 
-        ShoppingListDraftEntity saved = shoppingListDraftRepository.save(entity);
-        return ShoppingListDraftEntityMapper.toDomain(saved);
+        try {
+            ShoppingListDraftEntity saved = shoppingListDraftRepository.save(entity);
+            return ShoppingListDraftEntityMapper.toDomain(saved);
+        } catch (DataIntegrityViolationException ex) {
+            if (normalizedIdempotencyKey == null) {
+                throw ex;
+            }
+            return shoppingListDraftRepository
+                    .findTopByUserIdAndPlanIdAndIdempotencyKeyOrderByCreatedAtDesc(
+                            userId,
+                            planId,
+                            normalizedIdempotencyKey
+                    )
+                    .map(ShoppingListDraftEntityMapper::toDomain)
+                    .orElseThrow(() -> ex);
+        }
     }
 
     @Transactional(readOnly = true)

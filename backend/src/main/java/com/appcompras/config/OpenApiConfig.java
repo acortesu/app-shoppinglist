@@ -16,7 +16,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("AppCompras Backend API")
                         .version("v1")
-                        .description("Week Meal Prep + Shopping List backend API"))
+                        .description("Week Meal Prep + Shopping List backend API. Optional header: X-API-Version=1"))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .schemaRequirement("bearerAuth", new SecurityScheme()
                         .name("bearerAuth")

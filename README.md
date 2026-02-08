@@ -29,7 +29,7 @@ Proyecto portfolio DevOps con foco en un MVP usable para planificación de comid
 1. Levantar Docker Desktop.
 2. Copiar variables:
    - `cp .env.example .env`
-   - completar `GOOGLE_CLIENT_ID`
+   - completar `GOOGLE_CLIENT_ID` con tu Client ID de Google
 3. Desde la raíz del repo (`/Users/alo/Documents/Code/appCompras/appCompras`):
    - Solo DB: `./scripts/dev-up.sh`
    - DB + backend dockerizado: `./scripts/dev-up.sh app`
@@ -47,11 +47,42 @@ Credenciales por defecto del compose:
 Si corrés backend en local (no docker), usa los defaults de `backend/src/main/resources/application.yml` y conecta a esa misma DB.
 El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompras/.env`.
 
+## Seguridad (Google JWT)
+
+- Endpoints `/api/**` requieren JWT cuando `APP_SECURITY_REQUIRE_AUTH=true`.
+- Header esperado: `Authorization: Bearer <google_id_token>`.
+- `GOOGLE_CLIENT_ID` debe coincidir con la audiencia (`aud`) del token.
+- Para desarrollo local sin login:
+  - `APP_SECURITY_REQUIRE_AUTH=false`
+- Endpoints públicos aunque auth esté activo:
+  - `/swagger-ui.html`
+  - `/v3/api-docs`
+  - `/actuator/health`
+  - `/actuator/info`
+
+## Versionado de API
+
+- Versión actual: `v1`.
+- Header opcional: `X-API-Version`.
+- Valores aceptados:
+  - `1`
+  - `v1`
+- Sin header también funciona para mantener compatibilidad.
+- Cualquier otro valor devuelve `400` con código `UNSUPPORTED_API_VERSION`.
+
 ## Test de integración Postgres
 
 - Test E2E con Postgres real (Testcontainers):
   - `cd backend && gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
 - Requiere Docker disponible para el proceso de tests.
+
+## Tests de seguridad y ownership
+
+- Correr todas las pruebas backend:
+  - `cd backend && gradle --no-daemon test`
+- Incluye:
+  - `ApiSecurityAuthTest`: valida `401` sin token y acceso con JWT.
+  - `OwnershipIsolationTest`: valida aislamiento de datos por `sub` (usuario autenticado).
 
 ## Shopping list UX + idempotency
 
@@ -67,6 +98,18 @@ El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompr
 - OpenAPI JSON: `/v3/api-docs`
 - Health: `/actuator/health`
 - Métricas Prometheus: `/actuator/prometheus`
+- Logs: incluyen `requestId`, método, path, status y latencia (`durationMs`).
+
+## Troubleshooting rápido
+
+- `401 UNAUTHORIZED` en `/api/**`:
+  - falta token o `APP_SECURITY_REQUIRE_AUTH=true` sin login.
+- `invalid_token` / audience inválida:
+  - revisar `GOOGLE_CLIENT_ID` y que coincida con el token real.
+- Error de conexión a DB:
+  - validar `docker compose ps`, credenciales del `.env`, y `DB_URL`.
+- Error Flyway al arrancar:
+  - revisar tabla `flyway_schema_history` y que no haya migraciones editadas luego de aplicarse.
 
 ## CI
 

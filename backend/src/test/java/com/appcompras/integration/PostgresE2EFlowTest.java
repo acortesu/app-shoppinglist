@@ -76,7 +76,7 @@ class PostgresE2EFlowTest {
         Integer draftCount = jdbcTemplate.queryForObject("select count(*) from shopping_list_drafts", Integer.class);
         Integer customIngredientCount = jdbcTemplate.queryForObject("select count(*) from ingredient_custom", Integer.class);
         Integer migrationCount = jdbcTemplate.queryForObject(
-                "select count(*) from flyway_schema_history where version in ('1','2','3','4','5','6') and success = true",
+                "select count(*) from flyway_schema_history where version in ('1','2','3','4','5','6','7') and success = true",
                 Integer.class
         );
 
@@ -85,7 +85,7 @@ class PostgresE2EFlowTest {
         assertThat(draftCount).isEqualTo(1);
         assertThat(customIngredientCount).isEqualTo(1);
         assertThat(customIngredientId).startsWith("custom-carne-de-conejo-");
-        assertThat(migrationCount).isEqualTo(6);
+        assertThat(migrationCount).isEqualTo(7);
     }
 
     private String createCustomIngredientAndGetId() throws Exception {
