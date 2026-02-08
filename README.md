@@ -37,6 +37,8 @@ Proyecto portfolio DevOps con foco en un MVP usable para planificación de comid
    - `docker compose ps`
 5. Para apagar:
    - `./scripts/dev-down.sh`
+6. Smoke E2E backend (flujo completo):
+   - `./scripts/smoke-backend-e2e.sh`
 
 Credenciales por defecto del compose:
 - DB: `appcompras`
@@ -131,6 +133,11 @@ El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompr
   - `backend-integration-postgres`: flujo E2E con Testcontainers + PostgreSQL.
 - Recomendado en GitHub branch protection:
   - marcar ambos checks (`backend-unit`, `backend-integration-postgres`) como requeridos para merge.
+  - regla en GitHub: `Settings > Branches > Branch protection rules > master`.
+
+## Definition Of Done (backend MVP)
+
+- Checklist completo: `/Users/alo/Documents/Code/appCompras/appCompras/docs/backend-mvp-dod.md`.
 
 ## Próximos hitos
 
