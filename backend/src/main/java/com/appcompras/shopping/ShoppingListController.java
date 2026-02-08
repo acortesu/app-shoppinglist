@@ -6,6 +6,8 @@ import com.appcompras.planning.MealPlan;
 import com.appcompras.planning.MealPlanService;
 import com.appcompras.recipe.RecipeService;
 import com.appcompras.service.ShoppingListService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +27,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/shopping-lists")
+@Tag(name = "Shopping Lists")
 public class ShoppingListController {
 
     private final MealPlanService mealPlanService;
@@ -45,6 +48,7 @@ public class ShoppingListController {
     }
 
     @PostMapping("/generate")
+    @Operation(summary = "Generate shopping list draft from plan")
     public ShoppingListResponse generate(
             @RequestParam String planId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
@@ -68,6 +72,7 @@ public class ShoppingListController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get shopping list draft by id")
     public ShoppingListResponse getById(@PathVariable String id) {
         ShoppingListDraft draft = shoppingListDraftService.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping list not found"));
@@ -75,6 +80,7 @@ public class ShoppingListController {
     }
 
     @GetMapping
+    @Operation(summary = "List shopping list drafts")
     public List<ShoppingListResponse> getAll() {
         return shoppingListDraftService.findAll().stream()
                 .map(ShoppingListResponse::from)
@@ -82,6 +88,7 @@ public class ShoppingListController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Replace shopping list draft items")
     public ShoppingListResponse update(@PathVariable String id, @Valid @RequestBody UpdateShoppingListRequest request) {
         ShoppingListDraft updated = shoppingListDraftService.replaceItems(id, request)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shopping list not found"));
@@ -90,6 +97,7 @@ public class ShoppingListController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete shopping list draft")
     public void delete(@PathVariable String id) {
         boolean deleted = shoppingListDraftService.deleteById(id);
         if (!deleted) {

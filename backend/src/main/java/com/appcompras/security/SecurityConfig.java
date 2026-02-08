@@ -24,7 +24,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(
             HttpSecurity http,
-            @Value("${app.security.require-auth:true}") boolean requireAuth
+            @Value("${app.security.require-auth:true}") boolean requireAuth,
+            SecurityErrorHandlers securityErrorHandlers
     ) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
@@ -33,8 +34,18 @@ public class SecurityConfig {
         if (requireAuth) {
             http
                     .authorizeHttpRequests(authz -> authz
+                            .requestMatchers(
+                                    "/swagger-ui.html",
+                                    "/swagger-ui/**",
+                                    "/v3/api-docs/**",
+                                    "/actuator/health",
+                                    "/actuator/info"
+                            ).permitAll()
                             .requestMatchers("/api/**").authenticated()
                             .anyRequest().permitAll())
+                    .exceptionHandling(ex -> ex
+                            .authenticationEntryPoint(securityErrorHandlers)
+                            .accessDeniedHandler(securityErrorHandlers))
                     .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {
                     }));
         } else {

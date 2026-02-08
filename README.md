@@ -45,6 +45,7 @@ Credenciales por defecto del compose:
 - Puerto: `5432`
 
 Si corrés backend en local (no docker), usa los defaults de `backend/src/main/resources/application.yml` y conecta a esa misma DB.
+El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompras/.env`.
 
 ## Test de integración Postgres
 
@@ -59,6 +60,18 @@ Si corrés backend en local (no docker), usa los defaults de `backend/src/main/r
   - `bought` (boolean)
   - `note` (string)
   - `sortOrder` (integer)
+
+## Observabilidad
+
+- Swagger UI: `/swagger-ui.html`
+- OpenAPI JSON: `/v3/api-docs`
+- Health: `/actuator/health`
+- Métricas Prometheus: `/actuator/prometheus`
+
+## CI
+
+- Pipeline backend con tests en `.github/workflows/backend-ci.yml`.
+- Corre en push/PR contra `master` y ejecuta `gradle --no-daemon test` en `backend`.
 
 ## Próximos hitos
 

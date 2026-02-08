@@ -2,6 +2,8 @@ package com.appcompras.ingredient;
 
 import com.appcompras.domain.IngredientCatalogItem;
 import com.appcompras.service.IngredientCatalogService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/ingredients")
+@Tag(name = "Ingredients")
 public class IngredientController {
 
     private final IngredientCatalogService ingredientCatalogService;
@@ -25,6 +28,7 @@ public class IngredientController {
     }
 
     @GetMapping
+    @Operation(summary = "List ingredient catalog")
     public List<IngredientResponse> listIngredients(@RequestParam(required = false) String q) {
         return ingredientCatalogService.list(q).stream()
                 .map(IngredientResponse::from)
@@ -33,6 +37,7 @@ public class IngredientController {
 
     @PostMapping("/custom")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create custom ingredient")
     public IngredientResponse createCustom(@Valid @RequestBody CreateCustomIngredientRequest request) {
         IngredientCatalogItem item = ingredientCatalogService.createCustomIngredient(
                 request.name(),
