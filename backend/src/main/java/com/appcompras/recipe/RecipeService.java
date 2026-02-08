@@ -1,5 +1,6 @@
 package com.appcompras.recipe;
 
+import com.appcompras.security.CurrentUserProvider;
 import com.appcompras.service.IngredientCatalogService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,14 +15,21 @@ public class RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final IngredientCatalogService ingredientCatalogService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public RecipeService(RecipeRepository recipeRepository, IngredientCatalogService ingredientCatalogService) {
+    public RecipeService(
+            RecipeRepository recipeRepository,
+            IngredientCatalogService ingredientCatalogService,
+            CurrentUserProvider currentUserProvider
+    ) {
         this.recipeRepository = recipeRepository;
         this.ingredientCatalogService = ingredientCatalogService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
     public Recipe create(CreateRecipeRequest request) {
+        String userId = currentUserProvider.getCurrentUserId();
         Instant now = Instant.now();
         String id = UUID.randomUUID().toString();
 
@@ -31,6 +39,7 @@ public class RecipeService {
 
         RecipeEntity entity = new RecipeEntity();
         entity.setId(id);
+        entity.setUserId(userId);
         entity.setName(request.name().trim());
         entity.setType(request.type());
         entity.setIngredients(RecipeEntityMapper.toEmbeddables(ingredients));
@@ -48,15 +57,17 @@ public class RecipeService {
 
     @Transactional(readOnly = true)
     public Optional<Recipe> findById(String id) {
-        return recipeRepository.findById(id)
+        String userId = currentUserProvider.getCurrentUserId();
+        return recipeRepository.findByIdAndUserId(id, userId)
                 .map(RecipeEntityMapper::toDomain);
     }
 
     @Transactional(readOnly = true)
     public List<Recipe> findAll(MealType type) {
+        String userId = currentUserProvider.getCurrentUserId();
         List<RecipeEntity> entities = type == null
-                ? recipeRepository.findAllByOrderByCreatedAtDescIdAsc()
-                : recipeRepository.findAllByTypeOrderByCreatedAtDescIdAsc(type);
+                ? recipeRepository.findAllByUserIdOrderByCreatedAtDescIdAsc(userId)
+                : recipeRepository.findAllByUserIdAndTypeOrderByCreatedAtDescIdAsc(userId, type);
 
         return entities.stream()
                 .map(RecipeEntityMapper::toDomain)
@@ -65,7 +76,8 @@ public class RecipeService {
 
     @Transactional
     public Optional<Recipe> update(String id, CreateRecipeRequest request) {
-        Optional<RecipeEntity> existingOpt = recipeRepository.findById(id);
+        String userId = currentUserProvider.getCurrentUserId();
+        Optional<RecipeEntity> existingOpt = recipeRepository.findByIdAndUserId(id, userId);
         if (existingOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -90,16 +102,19 @@ public class RecipeService {
 
     @Transactional
     public boolean deleteById(String id) {
-        if (!recipeRepository.existsById(id)) {
+        String userId = currentUserProvider.getCurrentUserId();
+        Optional<RecipeEntity> existingOpt = recipeRepository.findByIdAndUserId(id, userId);
+        if (existingOpt.isEmpty()) {
             return false;
         }
-        recipeRepository.deleteById(id);
+        recipeRepository.delete(existingOpt.get());
         return true;
     }
 
     @Transactional
     public boolean incrementUsageCount(String id, Instant usedAt) {
-        Optional<RecipeEntity> existingOpt = recipeRepository.findById(id);
+        String userId = currentUserProvider.getCurrentUserId();
+        Optional<RecipeEntity> existingOpt = recipeRepository.findByIdAndUserId(id, userId);
         if (existingOpt.isEmpty()) {
             return false;
         }

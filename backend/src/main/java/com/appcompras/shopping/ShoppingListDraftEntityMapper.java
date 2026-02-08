@@ -20,7 +20,10 @@ public final class ShoppingListDraftEntityMapper {
                         i.getSuggestedPackages(),
                         i.getPackageAmount(),
                         i.getPackageUnit(),
-                        i.isManual()
+                        i.isManual(),
+                        i.isBought(),
+                        i.getNote(),
+                        i.getSortOrder()
                 ))
                 .toList();
 
@@ -44,7 +47,10 @@ public final class ShoppingListDraftEntityMapper {
                         i.suggestedPackages(),
                         i.packageAmount(),
                         i.packageUnit(),
-                        i.manual()
+                        i.manual(),
+                        i.bought(),
+                        i.note(),
+                        i.sortOrder()
                 ))
                 .collect(Collectors.toCollection(ArrayList::new));
     }

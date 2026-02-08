@@ -3,6 +3,7 @@ package com.appcompras.service;
 import com.appcompras.domain.IngredientCatalogItem;
 import com.appcompras.domain.MeasurementType;
 import com.appcompras.domain.Unit;
+import com.appcompras.security.CurrentUserProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,27 +30,47 @@ public class IngredientCatalogService {
 
     private static final String SEED_FILE = "seed/ingredients-catalog-cr.json";
 
-    private final ConcurrentMap<String, IngredientCatalogItem> catalog = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, String> aliasToIngredientId = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, IngredientCatalogItem> seedCatalog = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> seedAliasToIngredientId = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<String, IngredientCatalogItem> localCustomCatalog = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> localCustomAliasToIngredientId = new ConcurrentHashMap<>();
+
     private final ObjectMapper objectMapper;
     private final IngredientCustomRepository ingredientCustomRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     @Autowired
-    public IngredientCatalogService(ObjectMapper objectMapper, IngredientCustomRepository ingredientCustomRepository) {
+    public IngredientCatalogService(
+            ObjectMapper objectMapper,
+            IngredientCustomRepository ingredientCustomRepository,
+            CurrentUserProvider currentUserProvider
+    ) {
         this.objectMapper = objectMapper;
         this.ingredientCustomRepository = ingredientCustomRepository;
+        this.currentUserProvider = currentUserProvider;
         loadSeedFromResource(SEED_FILE);
-        loadCustomFromDatabase();
     }
 
     public IngredientCatalogService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         this.ingredientCustomRepository = null;
+        this.currentUserProvider = null;
         loadSeedFromResource(SEED_FILE);
     }
 
     public Optional<IngredientCatalogItem> findById(String ingredientId) {
-        return Optional.ofNullable(catalog.get(ingredientId));
+        IngredientCatalogItem seedItem = seedCatalog.get(ingredientId);
+        if (seedItem != null) {
+            return Optional.of(seedItem);
+        }
+
+        if (ingredientCustomRepository != null) {
+            return ingredientCustomRepository.findByIdAndUserId(ingredientId, currentUserId())
+                    .map(this::toCustomCatalogItem);
+        }
+
+        return Optional.ofNullable(localCustomCatalog.get(ingredientId));
     }
 
     public Optional<String> resolveIngredientId(String rawInput) {
@@ -58,37 +79,65 @@ public class IngredientCatalogService {
         }
 
         String direct = rawInput.trim();
-        if (catalog.containsKey(direct)) {
+        if (seedCatalog.containsKey(direct)) {
             return Optional.of(direct);
         }
 
         String lowered = direct.toLowerCase(Locale.ROOT);
-        if (catalog.containsKey(lowered)) {
+        if (seedCatalog.containsKey(lowered)) {
             return Optional.of(lowered);
         }
 
         String normalized = normalizeAlias(rawInput);
-        if (catalog.containsKey(normalized)) {
+        if (seedCatalog.containsKey(normalized)) {
             return Optional.of(normalized);
         }
 
-        return Optional.ofNullable(aliasToIngredientId.get(normalized));
+        String seedAliasMatch = seedAliasToIngredientId.get(normalized);
+        if (seedAliasMatch != null) {
+            return Optional.of(seedAliasMatch);
+        }
+
+        if (ingredientCustomRepository != null) {
+            Optional<IngredientCustomEntity> match = ingredientCustomRepository.findByUserIdAndNormalizedName(
+                    currentUserId(), normalized);
+            if (match.isPresent()) {
+                return Optional.of(match.get().getId());
+            }
+
+            return ingredientCustomRepository.findByIdAndUserId(direct, currentUserId())
+                    .map(IngredientCustomEntity::getId);
+        }
+
+        String customAliasMatch = localCustomAliasToIngredientId.get(normalized);
+        if (customAliasMatch != null) {
+            return Optional.of(customAliasMatch);
+        }
+
+        if (localCustomCatalog.containsKey(direct)) {
+            return Optional.of(direct);
+        }
+
+        return Optional.empty();
     }
 
     public boolean isUnitAllowed(String ingredientId, Unit unit) {
-        IngredientCatalogItem item = catalog.get(ingredientId);
-        return item != null && item.allowedUnits().contains(unit);
+        return findById(ingredientId)
+                .map(item -> item.allowedUnits().contains(unit))
+                .orElse(false);
     }
 
     public List<IngredientCatalogItem> list(String query) {
+        List<IngredientCatalogItem> customItems = customItemsForCurrentUser();
+
         if (query == null || query.isBlank()) {
-            return catalog.values().stream()
+            return java.util.stream.Stream.concat(seedCatalog.values().stream(), customItems.stream())
                     .sorted(Comparator.comparing(IngredientCatalogItem::displayName))
                     .toList();
         }
 
         String normalizedQuery = normalizeAlias(query);
-        return catalog.values().stream()
+        return java.util.stream.Stream.concat(seedCatalog.values().stream(), customItems.stream())
                 .filter(item -> item.ingredientId().contains(normalizedQuery)
                         || normalizeAlias(item.displayName()).contains(normalizedQuery)
                         || hasMatchingAlias(item.ingredientId(), normalizedQuery))
@@ -109,39 +158,46 @@ public class IngredientCatalogService {
         }
 
         String id = "custom-" + normalizedName + "-" + UUID.randomUUID().toString().substring(0, 8);
-        IngredientCatalogItem item = customItem(id, trimmedName, measurementType);
 
         if (ingredientCustomRepository != null) {
             IngredientCustomEntity entity = new IngredientCustomEntity();
             entity.setId(id);
+            entity.setUserId(currentUserId());
             entity.setName(trimmedName);
             entity.setNormalizedName(normalizedName);
             entity.setMeasurementType(measurementType);
             entity.setCreatedAt(Instant.now());
 
             try {
-                ingredientCustomRepository.save(entity);
+                IngredientCustomEntity saved = ingredientCustomRepository.save(entity);
+                return toCustomCatalogItem(saved);
             } catch (DataIntegrityViolationException ex) {
                 throw new IllegalArgumentException("Ingredient already exists: " + trimmedName);
             }
         }
 
-        registerIngredient(item, List.of(normalizedName, id, trimmedName));
-        return item;
+        IngredientCatalogItem localItem = buildCustomItem(id, trimmedName, measurementType);
+        localCustomCatalog.put(id, localItem);
+        addLocalCustomAlias(id, normalizedName);
+        addLocalCustomAlias(id, id);
+        addLocalCustomAlias(id, trimmedName);
+        return localItem;
     }
 
-    private void loadCustomFromDatabase() {
-        if (ingredientCustomRepository == null) {
-            return;
+    private List<IngredientCatalogItem> customItemsForCurrentUser() {
+        if (ingredientCustomRepository != null) {
+            return ingredientCustomRepository.findAllByUserId(currentUserId()).stream()
+                    .map(this::toCustomCatalogItem)
+                    .toList();
         }
-
-        for (IngredientCustomEntity entity : ingredientCustomRepository.findAll()) {
-            IngredientCatalogItem item = customItem(entity.getId(), entity.getName(), entity.getMeasurementType());
-            registerIngredient(item, List.of(entity.getNormalizedName(), entity.getId(), entity.getName()));
-        }
+        return localCustomCatalog.values().stream().toList();
     }
 
-    private IngredientCatalogItem customItem(String id, String name, MeasurementType measurementType) {
+    private IngredientCatalogItem toCustomCatalogItem(IngredientCustomEntity entity) {
+        return buildCustomItem(entity.getId(), entity.getName(), entity.getMeasurementType());
+    }
+
+    private IngredientCatalogItem buildCustomItem(String id, String name, MeasurementType measurementType) {
         return switch (measurementType) {
             case WEIGHT -> new IngredientCatalogItem(
                     id,
@@ -176,13 +232,6 @@ public class IngredientCatalogService {
                     Unit.TO_TASTE
             );
         };
-    }
-
-    private void registerIngredient(IngredientCatalogItem item, List<String> aliases) {
-        catalog.put(item.ingredientId(), item);
-        for (String alias : aliases) {
-            addAlias(item.ingredientId(), alias);
-        }
     }
 
     private void loadSeedFromResource(String resourcePath) {
@@ -226,14 +275,14 @@ public class IngredientCatalogService {
                 suggestedPurchaseUnit
         );
 
-        catalog.put(id, item);
-        addAlias(id, id);
-        addAlias(id, displayName);
+        seedCatalog.put(id, item);
+        addSeedAlias(id, id);
+        addSeedAlias(id, displayName);
 
         JsonNode aliasesNode = node.path("aliases");
         if (aliasesNode.isArray()) {
             for (JsonNode aliasNode : aliasesNode) {
-                addAlias(id, aliasNode.asText());
+                addSeedAlias(id, aliasNode.asText());
             }
         }
     }
@@ -246,7 +295,7 @@ public class IngredientCatalogService {
         return value.asText();
     }
 
-    private void addAlias(String ingredientId, String alias) {
+    private void addSeedAlias(String ingredientId, String alias) {
         if (alias == null || alias.isBlank()) {
             return;
         }
@@ -255,7 +304,7 @@ public class IngredientCatalogService {
             return;
         }
 
-        String existingIngredientId = aliasToIngredientId.putIfAbsent(normalizedAlias, ingredientId);
+        String existingIngredientId = seedAliasToIngredientId.putIfAbsent(normalizedAlias, ingredientId);
         if (existingIngredientId != null && !existingIngredientId.equals(ingredientId)) {
             throw new IllegalStateException(
                     "Ambiguous alias '" + alias + "' maps to both '" + existingIngredientId + "' and '" + ingredientId + "'"
@@ -263,9 +312,33 @@ public class IngredientCatalogService {
         }
     }
 
+    private void addLocalCustomAlias(String ingredientId, String alias) {
+        if (alias == null || alias.isBlank()) {
+            return;
+        }
+        String normalizedAlias = normalizeAlias(alias);
+        if (normalizedAlias.isBlank()) {
+            return;
+        }
+        localCustomAliasToIngredientId.putIfAbsent(normalizedAlias, ingredientId);
+    }
+
     private boolean hasMatchingAlias(String ingredientId, String query) {
-        return aliasToIngredientId.entrySet().stream()
+        boolean seedMatch = seedAliasToIngredientId.entrySet().stream()
                 .anyMatch(entry -> entry.getValue().equals(ingredientId) && entry.getKey().contains(query));
+        if (seedMatch) {
+            return true;
+        }
+
+        return localCustomAliasToIngredientId.entrySet().stream()
+                .anyMatch(entry -> entry.getValue().equals(ingredientId) && entry.getKey().contains(query));
+    }
+
+    private String currentUserId() {
+        if (currentUserProvider == null) {
+            return "local-dev-user";
+        }
+        return currentUserProvider.getCurrentUserId();
     }
 
     private String normalizeAlias(String value) {

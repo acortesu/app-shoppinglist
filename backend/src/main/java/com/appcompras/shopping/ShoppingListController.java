@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -44,7 +45,10 @@ public class ShoppingListController {
     }
 
     @PostMapping("/generate")
-    public ShoppingListResponse generate(@RequestParam String planId) {
+    public ShoppingListResponse generate(
+            @RequestParam String planId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
+    ) {
         MealPlan plan = mealPlanService.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan not found"));
 
@@ -56,7 +60,8 @@ public class ShoppingListController {
 
         ShoppingListDraft draft = shoppingListDraftService.createFromGenerated(
                 planId,
-                shoppingListService.generateFromRecipes(recipes)
+                shoppingListService.generateFromRecipes(recipes),
+                idempotencyKey
         );
 
         return ShoppingListResponse.from(draft);

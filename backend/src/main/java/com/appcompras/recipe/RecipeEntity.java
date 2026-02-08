@@ -25,6 +25,9 @@ public class RecipeEntity {
     @Column(nullable = false, length = 36)
     private String id;
 
+    @Column(name = "user_id", nullable = false, length = 128)
+    private String userId;
+
     @Column(nullable = false)
     private String name;
 
@@ -66,6 +69,14 @@ public class RecipeEntity {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getName() {

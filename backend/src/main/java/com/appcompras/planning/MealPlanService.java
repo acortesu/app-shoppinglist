@@ -1,5 +1,6 @@
 package com.appcompras.planning;
 
+import com.appcompras.security.CurrentUserProvider;
 import com.appcompras.recipe.RecipeService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,19 +18,27 @@ public class MealPlanService {
 
     private final MealPlanRepository mealPlanRepository;
     private final RecipeService recipeService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public MealPlanService(MealPlanRepository mealPlanRepository, RecipeService recipeService) {
+    public MealPlanService(
+            MealPlanRepository mealPlanRepository,
+            RecipeService recipeService,
+            CurrentUserProvider currentUserProvider
+    ) {
         this.mealPlanRepository = mealPlanRepository;
         this.recipeService = recipeService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @Transactional
     public MealPlan create(CreateMealPlanRequest request) {
+        String userId = currentUserProvider.getCurrentUserId();
         Instant now = Instant.now();
         MealPlan plan = buildPlan(UUID.randomUUID().toString(), request, now, now);
 
         MealPlanEntity entity = new MealPlanEntity();
         entity.setId(plan.id());
+        entity.setUserId(userId);
         entity.setStartDate(plan.startDate());
         entity.setEndDate(plan.endDate());
         entity.setPeriod(plan.period());
@@ -44,7 +53,8 @@ public class MealPlanService {
 
     @Transactional
     public Optional<MealPlan> update(String id, CreateMealPlanRequest request) {
-        Optional<MealPlanEntity> existingOpt = mealPlanRepository.findById(id);
+        String userId = currentUserProvider.getCurrentUserId();
+        Optional<MealPlanEntity> existingOpt = mealPlanRepository.findByIdAndUserId(id, userId);
         if (existingOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -67,23 +77,27 @@ public class MealPlanService {
 
     @Transactional(readOnly = true)
     public List<MealPlan> findAll() {
-        return mealPlanRepository.findAllByOrderByCreatedAtDescIdAsc().stream()
+        String userId = currentUserProvider.getCurrentUserId();
+        return mealPlanRepository.findAllByUserIdOrderByCreatedAtDescIdAsc(userId).stream()
                 .map(MealPlanEntityMapper::toDomain)
                 .toList();
     }
 
     @Transactional
     public boolean deleteById(String id) {
-        if (!mealPlanRepository.existsById(id)) {
+        String userId = currentUserProvider.getCurrentUserId();
+        Optional<MealPlanEntity> existingOpt = mealPlanRepository.findByIdAndUserId(id, userId);
+        if (existingOpt.isEmpty()) {
             return false;
         }
-        mealPlanRepository.deleteById(id);
+        mealPlanRepository.delete(existingOpt.get());
         return true;
     }
 
     @Transactional(readOnly = true)
     public Optional<MealPlan> findById(String id) {
-        return mealPlanRepository.findById(id)
+        String userId = currentUserProvider.getCurrentUserId();
+        return mealPlanRepository.findByIdAndUserId(id, userId)
                 .map(MealPlanEntityMapper::toDomain);
     }
 

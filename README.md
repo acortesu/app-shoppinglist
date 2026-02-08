@@ -27,12 +27,15 @@ Proyecto portfolio DevOps con foco en un MVP usable para planificación de comid
 ## Entorno local (docker-compose)
 
 1. Levantar Docker Desktop.
-2. Desde la raíz del repo (`/Users/alo/Documents/Code/appCompras/appCompras`):
+2. Copiar variables:
+   - `cp .env.example .env`
+   - completar `GOOGLE_CLIENT_ID`
+3. Desde la raíz del repo (`/Users/alo/Documents/Code/appCompras/appCompras`):
    - Solo DB: `./scripts/dev-up.sh`
    - DB + backend dockerizado: `./scripts/dev-up.sh app`
-3. Verificar salud:
+4. Verificar salud:
    - `docker compose ps`
-4. Para apagar:
+5. Para apagar:
    - `./scripts/dev-down.sh`
 
 Credenciales por defecto del compose:
@@ -48,6 +51,14 @@ Si corrés backend en local (no docker), usa los defaults de `backend/src/main/r
 - Test E2E con Postgres real (Testcontainers):
   - `cd backend && gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
 - Requiere Docker disponible para el proceso de tests.
+
+## Shopping list UX + idempotency
+
+- `POST /api/shopping-lists/generate` acepta header opcional `Idempotency-Key`.
+- `PUT /api/shopping-lists/{id}` ahora acepta por item:
+  - `bought` (boolean)
+  - `note` (string)
+  - `sortOrder` (integer)
 
 ## Próximos hitos
 

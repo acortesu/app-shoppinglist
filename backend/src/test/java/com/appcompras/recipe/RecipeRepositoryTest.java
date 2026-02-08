@@ -26,6 +26,7 @@ class RecipeRepositoryTest {
     void saveAndLoadRecipeWithIngredientsAndTags() {
         RecipeEntity recipe = new RecipeEntity();
         recipe.setId("r-1");
+        recipe.setUserId("local-dev-user");
         recipe.setName("Arroz con tomate");
         recipe.setType(MealType.LUNCH);
         recipe.setIngredients(List.of(
@@ -57,13 +58,15 @@ class RecipeRepositoryTest {
 
         recipeRepository.saveAll(List.of(olderBreakfast, newerBreakfast, lunch));
 
-        List<RecipeEntity> breakfasts = recipeRepository.findAllByTypeOrderByCreatedAtDescIdAsc(MealType.BREAKFAST);
+        List<RecipeEntity> breakfasts = recipeRepository.findAllByUserIdAndTypeOrderByCreatedAtDescIdAsc(
+                "local-dev-user", MealType.BREAKFAST);
         assertThat(breakfasts).extracting(RecipeEntity::getId).containsExactly("r-2", "r-1");
     }
 
     private RecipeEntity buildRecipe(String id, String name, MealType type, Instant createdAt) {
         RecipeEntity recipe = new RecipeEntity();
         recipe.setId(id);
+        recipe.setUserId("local-dev-user");
         recipe.setName(name);
         recipe.setType(type);
         recipe.setIngredients(List.of(new RecipeIngredientEmbeddable("rice", 1.0, Unit.CUP)));

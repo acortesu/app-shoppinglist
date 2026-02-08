@@ -33,6 +33,15 @@ public class ShoppingListDraftItemEmbeddable {
     @Column(nullable = false)
     private boolean manual;
 
+    @Column(nullable = false)
+    private boolean bought;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder;
+
     public ShoppingListDraftItemEmbeddable() {
     }
 
@@ -45,7 +54,10 @@ public class ShoppingListDraftItemEmbeddable {
             Integer suggestedPackages,
             Double packageAmount,
             String packageUnit,
-            boolean manual
+            boolean manual,
+            boolean bought,
+            String note,
+            int sortOrder
     ) {
         this.id = id;
         this.ingredientId = ingredientId;
@@ -56,6 +68,9 @@ public class ShoppingListDraftItemEmbeddable {
         this.packageAmount = packageAmount;
         this.packageUnit = packageUnit;
         this.manual = manual;
+        this.bought = bought;
+        this.note = note;
+        this.sortOrder = sortOrder;
     }
 
     public String getId() {
@@ -128,5 +143,29 @@ public class ShoppingListDraftItemEmbeddable {
 
     public void setManual(boolean manual) {
         this.manual = manual;
+    }
+
+    public boolean isBought() {
+        return bought;
+    }
+
+    public void setBought(boolean bought) {
+        this.bought = bought;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public int getSortOrder() {
+        return sortOrder;
+    }
+
+    public void setSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
     }
 }

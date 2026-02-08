@@ -9,6 +9,9 @@ public record ShoppingListDraftItem(
         Integer suggestedPackages,
         Double packageAmount,
         String packageUnit,
-        boolean manual
+        boolean manual,
+        boolean bought,
+        String note,
+        int sortOrder
 ) {
 }

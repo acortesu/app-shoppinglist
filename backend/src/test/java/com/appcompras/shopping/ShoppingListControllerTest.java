@@ -221,6 +221,33 @@ class ShoppingListControllerTest {
                 .andExpect(jsonPath("$.error").isNotEmpty());
     }
 
+    @Test
+    void generateShoppingListWithSameIdempotencyKeyReturnsSameDraft() throws Exception {
+        String recipeId = createRecipeAndGetId("Rice", "LUNCH", "rice", 1, "CUP");
+        String planId = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeId,
+                null, null, null
+        );
+
+        MvcResult first = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId)
+                        .header("Idempotency-Key", "gen-123"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult second = mockMvc.perform(post("/api/shopping-lists/generate")
+                        .param("planId", planId)
+                        .header("Idempotency-Key", "gen-123"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String firstId = JsonPath.read(first.getResponse().getContentAsString(), "$.id");
+        String secondId = JsonPath.read(second.getResponse().getContentAsString(), "$.id");
+        Assertions.assertEquals(firstId, secondId);
+    }
+
     private String createRecipeAndGetId(String name, String type, String ingredientId, double quantity, String unit)
             throws Exception {
         String payload = """

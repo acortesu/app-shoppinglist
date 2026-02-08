@@ -24,6 +24,9 @@ public class MealPlanEntity {
     @Column(nullable = false, length = 36)
     private String id;
 
+    @Column(name = "user_id", nullable = false, length = 128)
+    private String userId;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
@@ -51,6 +54,14 @@ public class MealPlanEntity {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public LocalDate getStartDate() {

@@ -20,7 +20,10 @@ public record UpdateShoppingListRequest(
             Integer suggestedPackages,
             Double packageAmount,
             String packageUnit,
-            @NotNull Boolean manual
+            @NotNull Boolean manual,
+            Boolean bought,
+            String note,
+            Integer sortOrder
     ) {
     }
 }

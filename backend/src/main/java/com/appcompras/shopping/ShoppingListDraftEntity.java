@@ -21,8 +21,14 @@ public class ShoppingListDraftEntity {
     @Column(nullable = false, length = 36)
     private String id;
 
+    @Column(name = "user_id", nullable = false, length = 128)
+    private String userId;
+
     @Column(name = "plan_id", nullable = false, length = 36)
     private String planId;
+
+    @Column(name = "idempotency_key", length = 128)
+    private String idempotencyKey;
 
     @ElementCollection
     @CollectionTable(name = "shopping_list_draft_items", joinColumns = @JoinColumn(name = "draft_id"))
@@ -43,12 +49,28 @@ public class ShoppingListDraftEntity {
         this.id = id;
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
     public String getPlanId() {
         return planId;
     }
 
     public void setPlanId(String planId) {
         this.planId = planId;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public List<ShoppingListDraftItemEmbeddable> getItems() {
