@@ -1,5 +1,6 @@
 package com.appcompras.shopping;
 
+import com.appcompras.config.BusinessRuleException;
 import com.appcompras.domain.ShoppingListItem;
 import com.appcompras.security.CurrentUserProvider;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -97,6 +98,7 @@ public class ShoppingListDraftService {
         }
 
         ShoppingListDraftEntity existing = existingOpt.get();
+        validateItems(request.items());
         existing.setItems(ShoppingListDraftEntityMapper.toEmbeddables(
                 IntStream.range(0, request.items().size())
                         .mapToObj(i -> fromRequestItem(request.items().get(i), i))
@@ -159,5 +161,48 @@ public class ShoppingListDraftService {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private void validateItems(List<UpdateShoppingListRequest.ItemInput> items) {
+        for (int i = 0; i < items.size(); i++) {
+            UpdateShoppingListRequest.ItemInput item = items.get(i);
+            String context = "items[" + i + "]";
+
+            if (!item.manual() && (item.ingredientId() == null || item.ingredientId().isBlank())) {
+                throw new BusinessRuleException(
+                        "SHOPPING_ITEM_INGREDIENT_REQUIRED",
+                        context + ".ingredientId is required when manual=false"
+                );
+            }
+
+            boolean hasSuggestedPackages = item.suggestedPackages() != null;
+            boolean hasPackageAmount = item.packageAmount() != null;
+            boolean hasPackageUnit = item.packageUnit() != null && !item.packageUnit().isBlank();
+            boolean hasPackagingData = hasSuggestedPackages || hasPackageAmount || hasPackageUnit;
+            boolean hasCompletePackagingData = hasSuggestedPackages && hasPackageAmount && hasPackageUnit;
+
+            if (hasPackagingData && !hasCompletePackagingData) {
+                throw new BusinessRuleException(
+                        "SHOPPING_ITEM_PACKAGE_FIELDS_INCOMPLETE",
+                        context + " package fields must be sent together: suggestedPackages, packageAmount, packageUnit"
+                );
+            }
+
+            if (hasSuggestedPackages && item.suggestedPackages() <= 0) {
+                throw new BusinessRuleException("SHOPPING_ITEM_INVALID_SUGGESTED_PACKAGES", context + ".suggestedPackages must be > 0");
+            }
+
+            if (hasPackageAmount && item.packageAmount() <= 0) {
+                throw new BusinessRuleException("SHOPPING_ITEM_INVALID_PACKAGE_AMOUNT", context + ".packageAmount must be > 0");
+            }
+
+            if (item.note() != null && item.note().length() > 280) {
+                throw new BusinessRuleException("SHOPPING_ITEM_NOTE_TOO_LONG", context + ".note max length is 280");
+            }
+
+            if (item.sortOrder() != null && item.sortOrder() < 0) {
+                throw new BusinessRuleException("SHOPPING_ITEM_INVALID_SORT_ORDER", context + ".sortOrder must be >= 0");
+            }
+        }
     }
 }

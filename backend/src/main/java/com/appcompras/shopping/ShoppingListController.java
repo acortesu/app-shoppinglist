@@ -1,5 +1,6 @@
 package com.appcompras.shopping;
 
+import com.appcompras.config.BusinessRuleException;
 import com.appcompras.domain.Recipe;
 import com.appcompras.domain.RecipeIngredient;
 import com.appcompras.planning.MealPlan;
@@ -59,7 +60,10 @@ public class ShoppingListController {
         List<Recipe> recipes = plan.slots().stream()
                 .map(slot -> recipeService.findById(slot.recipeId())
                         .map(this::toDomainRecipe)
-                        .orElseThrow(() -> new IllegalArgumentException("Recipe not found for slot: " + slot.recipeId())))
+                        .orElseThrow(() -> new BusinessRuleException(
+                                "PLAN_RECIPE_NOT_FOUND",
+                                "Recipe not found for slot: " + slot.recipeId()
+                        )))
                 .toList();
 
         ShoppingListDraft draft = shoppingListDraftService.createFromGenerated(

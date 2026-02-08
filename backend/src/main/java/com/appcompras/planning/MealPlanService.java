@@ -1,5 +1,6 @@
 package com.appcompras.planning;
 
+import com.appcompras.config.BusinessRuleException;
 import com.appcompras.security.CurrentUserProvider;
 import com.appcompras.recipe.RecipeService;
 import org.springframework.stereotype.Service;
@@ -124,7 +125,7 @@ public class MealPlanService {
     private void validateRecipesExist(List<CreateMealPlanRequest.SlotInput> slots) {
         for (CreateMealPlanRequest.SlotInput slot : slots) {
             if (recipeService.findById(slot.recipeId()).isEmpty()) {
-                throw new IllegalArgumentException("Recipe not found for slot: " + slot.recipeId());
+                throw new BusinessRuleException("PLAN_RECIPE_NOT_FOUND", "Recipe not found for slot: " + slot.recipeId());
             }
         }
     }
@@ -159,12 +160,12 @@ public class MealPlanService {
         Map<String, Boolean> uniqueSlots = new HashMap<>();
         for (CreateMealPlanRequest.SlotInput slot : slots) {
             if (slot.date().isBefore(startDate) || slot.date().isAfter(endDate)) {
-                throw new IllegalArgumentException("Slot date out of plan range: " + slot.date());
+                throw new BusinessRuleException("PLAN_SLOT_OUT_OF_RANGE", "Slot date out of plan range: " + slot.date());
             }
 
             String key = slot.date() + "|" + slot.mealType();
             if (uniqueSlots.put(key, Boolean.TRUE) != null) {
-                throw new IllegalArgumentException("Duplicate slot for date and mealType: " + key);
+                throw new BusinessRuleException("PLAN_DUPLICATE_SLOT", "Duplicate slot for date and mealType: " + key);
             }
         }
     }

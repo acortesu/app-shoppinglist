@@ -141,6 +141,110 @@ class ShoppingListControllerTest {
     }
 
     @Test
+    void updateShoppingListRejectsNonManualItemWithoutIngredientId() throws Exception {
+        String shoppingListId = createGeneratedDraftId();
+
+        String payload = """
+                {
+                  "items": [
+                    {
+                      "name": "Rice",
+                      "quantity": 1,
+                      "unit": "GRAM",
+                      "manual": false
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("items[0].ingredientId is required when manual=false"));
+    }
+
+    @Test
+    void updateShoppingListRejectsIncompletePackageFields() throws Exception {
+        String shoppingListId = createGeneratedDraftId();
+
+        String payload = """
+                {
+                  "items": [
+                    {
+                      "ingredientId": "rice",
+                      "name": "Rice",
+                      "quantity": 1,
+                      "unit": "GRAM",
+                      "manual": false,
+                      "suggestedPackages": 1
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(
+                        "items[0] package fields must be sent together: suggestedPackages, packageAmount, packageUnit"));
+    }
+
+    @Test
+    void updateShoppingListRejectsNegativeSortOrder() throws Exception {
+        String shoppingListId = createGeneratedDraftId();
+
+        String payload = """
+                {
+                  "items": [
+                    {
+                      "ingredientId": "rice",
+                      "name": "Rice",
+                      "quantity": 1,
+                      "unit": "GRAM",
+                      "manual": false,
+                      "sortOrder": -1
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("items[0].sortOrder must be >= 0"));
+    }
+
+    @Test
+    void updateShoppingListRejectsTooLongNote() throws Exception {
+        String shoppingListId = createGeneratedDraftId();
+        String longNote = "x".repeat(281);
+
+        String payload = """
+                {
+                  "items": [
+                    {
+                      "ingredientId": "rice",
+                      "name": "Rice",
+                      "quantity": 1,
+                      "unit": "GRAM",
+                      "manual": false,
+                      "note": "%s"
+                    }
+                  ]
+                }
+                """.formatted(longNote);
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("items[0].note max length is 280"));
+    }
+
+    @Test
     void getShoppingListsReturnsOrderedDrafts() throws Exception {
         String recipeA = createRecipeAndGetId("Rice A", "LUNCH", "rice", 1, "CUP");
         String planA = createPlanAndGetId(
@@ -373,5 +477,16 @@ class ShoppingListControllerTest {
                 .andReturn();
 
         return JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+    }
+
+    private String createGeneratedDraftId() throws Exception {
+        String recipeId = createRecipeAndGetId("Rice validation", "LUNCH", "rice", 1, "CUP");
+        String planId = createPlanAndGetId(
+                "2026-02-09",
+                "WEEK",
+                "2026-02-10", "LUNCH", recipeId,
+                null, null, null
+        );
+        return generateShoppingListAndGetId(planId);
     }
 }
