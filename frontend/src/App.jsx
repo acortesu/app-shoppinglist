@@ -7,6 +7,95 @@ const PERIODS = ['WEEK', 'FORTNIGHT'];
 const UNITS = ['GRAM', 'KILOGRAM', 'MILLILITER', 'LITER', 'CUP', 'TABLESPOON', 'TEASPOON', 'PIECE', 'PINCH', 'TO_TASTE'];
 const REQUIRE_AUTH = (import.meta.env.VITE_REQUIRE_AUTH ?? 'true') !== 'false';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const TOKEN_STORAGE_KEY = 'appcompras_id_token';
+
+const API_ERROR_MESSAGES = {
+  global: {
+    VALIDATION_ERROR: 'Revisa los datos del formulario.',
+    INVALID_TYPE: 'Formato inválido en uno o más campos.',
+    RESOURCE_NOT_FOUND: 'No se encontró el recurso solicitado.',
+    FORBIDDEN: 'No tienes permisos para esta acción.',
+    UNSUPPORTED_API_VERSION: 'Versión de API inválida. Reintenta.',
+    INTERNAL_ERROR: 'Error interno del servidor. Intenta otra vez.'
+  },
+  recipe_form: {
+    INGREDIENT_NOT_FOUND: 'Ingrediente no encontrado en catálogo.',
+    INVALID_INGREDIENT_UNIT: 'Unidad inválida para ese ingrediente.',
+    VALIDATION_ERROR: 'Completa los campos obligatorios de la receta.'
+  },
+  planner: {
+    PLAN_RECIPE_NOT_FOUND: 'La receta del slot no existe o no es tuya.',
+    PLAN_SLOT_OUT_OF_RANGE: 'Hay slots fuera del rango de fechas del plan.',
+    PLAN_DUPLICATE_SLOT: 'Hay slots duplicados para fecha y comida.'
+  },
+  shopping: {
+    SHOPPING_ITEM_INGREDIENT_REQUIRED: 'Ítem inválido: falta ingredientId para item no manual.',
+    SHOPPING_ITEM_PACKAGE_FIELDS_INCOMPLETE: 'Completa suggestedPackages, packageAmount y packageUnit juntos.',
+    SHOPPING_ITEM_INVALID_SUGGESTED_PACKAGES: 'suggestedPackages debe ser mayor a 0.',
+    SHOPPING_ITEM_INVALID_PACKAGE_AMOUNT: 'packageAmount debe ser mayor a 0.',
+    SHOPPING_ITEM_NOTE_TOO_LONG: 'La nota supera el máximo permitido.',
+    SHOPPING_ITEM_INVALID_SORT_ORDER: 'sortOrder inválido.',
+    RESOURCE_NOT_FOUND: 'Draft de compra no encontrado.'
+  },
+  auth: {
+    UNAUTHORIZED: 'Sesión no válida. Inicia sesión nuevamente.',
+    FORBIDDEN: 'Tu usuario no tiene permisos para este recurso.'
+  }
+};
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const normalized = payload.padEnd(payload.length + ((4 - payload.length % 4) % 4), '=');
+    return JSON.parse(atob(normalized));
+  } catch {
+    return null;
+  }
+}
+
+function validateIdToken(token) {
+  const cleaned = token.replace(/^Bearer\s+/i, '').trim();
+  const payload = decodeJwtPayload(cleaned);
+  if (!payload) {
+    return { ok: false, message: 'El token no tiene formato JWT válido.' };
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (!payload.exp || payload.exp <= nowSec + 30) {
+    return { ok: false, message: 'El token está expirado o por expirar.' };
+  }
+
+  if (GOOGLE_CLIENT_ID && payload.aud !== GOOGLE_CLIENT_ID) {
+    return { ok: false, message: 'El token no coincide con el Google Client ID configurado.' };
+  }
+
+  if (payload.iss && payload.iss !== 'https://accounts.google.com' && payload.iss !== 'accounts.google.com') {
+    return { ok: false, message: 'Issuer inválido para token de Google.' };
+  }
+
+  return { ok: true, token: cleaned, payload };
+}
+
+function readValidSessionToken() {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return '';
+  const validation = validateIdToken(token);
+  if (!validation.ok) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    return '';
+  }
+  return validation.token;
+}
+
+function mapApiError(err, context = 'global') {
+  const code = err?.code || 'UNKNOWN_ERROR';
+  const payloadMessage = err?.payload?.error;
+  const byContext = API_ERROR_MESSAGES[context]?.[code];
+  const byGlobal = API_ERROR_MESSAGES.global[code];
+  return byContext || byGlobal || payloadMessage || err?.message || 'Error inesperado';
+}
 
 function isoDate(date) {
   const d = new Date(date);
@@ -43,17 +132,17 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(!REQUIRE_AUTH || api.hasAuthToken());
+  const [isAuthenticated, setIsAuthenticated] = useState(!REQUIRE_AUTH || Boolean(readValidSessionToken()));
 
-  const notifyError = (err) => {
+  const notifyError = (err, context = 'global') => {
     if (err?.code === 'UNAUTHORIZED' && REQUIRE_AUTH) {
       api.setAuthToken('');
       setIsAuthenticated(false);
-      setError('Sesión expirada o token inválido. Inicia sesión nuevamente.');
+      setError(mapApiError(err, 'auth'));
       setTimeout(() => setError(''), 4000);
       return;
     }
-    setError(err?.payload?.error || err?.message || 'Error inesperado');
+    setError(mapApiError(err, context));
     setTimeout(() => setError(''), 3500);
   };
 
@@ -63,7 +152,13 @@ function App() {
   };
 
   const handleLogin = (token) => {
-    api.setAuthToken(token);
+    const validation = validateIdToken(token);
+    if (!validation.ok) {
+      setError(validation.message);
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
+    api.setAuthToken(validation.token);
     setIsAuthenticated(true);
     notifySuccess('Sesión iniciada');
   };
@@ -119,7 +214,6 @@ function App() {
 }
 
 function AuthGate({ onLogin }) {
-  const [token, setToken] = useState(localStorage.getItem('appcompras_id_token') || '');
   const [localError, setLocalError] = useState('');
   const [googleReady, setGoogleReady] = useState(false);
   const googleBtnId = 'google-signin-button';
@@ -145,7 +239,8 @@ function AuthGate({ onLogin }) {
         },
         auto_select: false,
         cancel_on_tap_outside: true,
-        ux_mode: 'popup'
+        ux_mode: 'popup',
+        itp_support: true
       });
 
       const btnContainer = document.getElementById(googleBtnId);
@@ -161,6 +256,14 @@ function AuthGate({ onLogin }) {
         });
         setGoogleReady(true);
       }
+
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed()) {
+          setLocalError(`Google Sign-In no disponible: ${notification.getNotDisplayedReason()}.`);
+        } else if (notification.isSkippedMoment()) {
+          setLocalError(`Google Sign-In omitido: ${notification.getSkippedReason()}.`);
+        }
+      });
     };
 
     if (window.google?.accounts?.id) {
@@ -177,16 +280,6 @@ function AuthGate({ onLogin }) {
     document.head.appendChild(script);
   }, [onLogin]);
 
-  const submit = (e) => {
-    e.preventDefault();
-    const cleaned = token.replace(/^Bearer\s+/i, '').trim();
-    if (!cleaned) {
-      setLocalError('Pega un Google id_token válido.');
-      return;
-    }
-    onLogin(cleaned);
-  };
-
   return (
     <section className="auth-gate">
       <div className="auth-card">
@@ -202,23 +295,7 @@ function AuthGate({ onLogin }) {
             Falta <code>VITE_GOOGLE_CLIENT_ID</code> en <code>frontend/.env</code>.
           </p>
         )}
-        <p className="muted tiny">Fallback manual (si lo necesitas): pega aquí el <code>id_token</code>.</p>
-        <form onSubmit={submit} className="stack no-pad">
-          <textarea
-            className="input textarea"
-            placeholder="eyJhbGciOiJSUzI1NiIsImtpZCI6..."
-            value={token}
-            onChange={(e) => {
-              setToken(e.target.value);
-              if (localError) setLocalError('');
-            }}
-          />
-          {localError && <p className="auth-error">{localError}</p>}
-          <button className="btn btn-primary" type="submit">Entrar</button>
-        </form>
-        <p className="muted tiny">
-          Tip: si copiaste <code>Bearer ...</code>, la app lo limpia automáticamente.
-        </p>
+        {localError && <p className="auth-error">{localError}</p>}
       </div>
     </section>
   );
@@ -242,7 +319,7 @@ function RecipesPage({ setBusy, notifyError, notifySuccess }) {
       const data = await api.listRecipes();
       setRecipes(data || []);
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'recipes');
     } finally {
       setBusy(false);
     }
@@ -259,7 +336,7 @@ function RecipesPage({ setBusy, notifyError, notifySuccess }) {
       notifySuccess('Receta eliminada');
       await loadRecipes();
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'recipes');
     } finally {
       setBusy(false);
     }
@@ -338,8 +415,12 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
         }))
       : [{ ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [] }]
   );
+  const [formError, setFormError] = useState('');
+  const [invalidIngredientIndexes, setInvalidIngredientIndexes] = useState([]);
 
   const updateIngredient = (idx, patch) => {
+    if (formError) setFormError('');
+    if (invalidIngredientIndexes.length) setInvalidIngredientIndexes([]);
     setIngredients((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   };
 
@@ -359,6 +440,28 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
+    setInvalidIngredientIndexes([]);
+
+    const normalizedIngredients = ingredients.map((it) => {
+      const identifier = (it.ingredientId || it.query || '').trim();
+      return {
+        ingredientId: identifier,
+        quantity: Number(it.quantity),
+        unit: it.unit
+      };
+    });
+
+    const missingIdx = normalizedIngredients
+      .map((it, idx) => (!it.ingredientId || !Number.isFinite(it.quantity) || it.quantity <= 0 ? idx : -1))
+      .filter((idx) => idx >= 0);
+
+    if (missingIdx.length > 0) {
+      setInvalidIngredientIndexes(missingIdx);
+      setFormError('Revisa los ingredientes: nombre y cantidad son obligatorios.');
+      return;
+    }
+
     const payload = {
       name,
       type,
@@ -368,9 +471,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
-      ingredients: ingredients
-        .filter((it) => it.ingredientId && it.quantity)
-        .map((it) => ({ ingredientId: it.ingredientId, quantity: Number(it.quantity), unit: it.unit }))
+      ingredients: normalizedIngredients
     };
 
     try {
@@ -382,7 +483,23 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
       }
       await onSaved();
     } catch (err) {
-      notifyError(err);
+      const backendMessage = err?.payload?.error || err?.message || '';
+      if (err?.code === 'INGREDIENT_NOT_FOUND') {
+        const match = backendMessage.match(/Unknown ingredient:\s*([^\.]+)/i);
+        const unknown = match?.[1]?.trim().toLowerCase();
+        const idx = ingredients.findIndex((it) => {
+          const candidate = (it.ingredientId || it.query || '').trim().toLowerCase();
+          return candidate && candidate === unknown;
+        });
+        setInvalidIngredientIndexes(idx >= 0 ? [idx] : []);
+        setFormError('Ingrediente no encontrado. Selecciónalo desde catálogo o créalo como custom.');
+      } else if (err?.code === 'INVALID_INGREDIENT_UNIT') {
+        setFormError('La unidad no es válida para uno de los ingredientes seleccionados.');
+      } else if (err?.code === 'VALIDATION_ERROR') {
+        setFormError('Completa los campos obligatorios de la receta.');
+      } else {
+        notifyError(err, 'recipe_form');
+      }
     } finally {
       setBusy(false);
     }
@@ -402,7 +519,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
 
         <label>Ingredientes</label>
         {ingredients.map((it, idx) => (
-          <div key={idx} className="ingredient-box">
+          <div key={idx} className={`ingredient-box ${invalidIngredientIndexes.includes(idx) ? 'ingredient-box-invalid' : ''}`}>
             <input
               className="input"
               placeholder="Nombre del ingrediente"
@@ -441,6 +558,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
           </div>
         ))}
         <button type="button" className="btn" onClick={() => setIngredients((prev) => [...prev, { ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [] }])}>+ Agregar ingrediente</button>
+        {formError && <p className="auth-error">{formError}</p>}
 
         <label>Instrucciones</label>
         <textarea className="input textarea" value={preparation} onChange={(e) => setPreparation(e.target.value)} />
@@ -478,7 +596,7 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
       setRecipes(recipeData || []);
       setPlans(planData || []);
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'planner');
     } finally {
       setBusy(false);
     }
@@ -528,7 +646,7 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
       await load();
       notifySuccess('Plan guardado');
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'planner');
     } finally {
       setBusy(false);
     }
@@ -596,7 +714,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
       setDraft(latest);
       setSelectedPlanId(latest?.planId || allPlans?.[0]?.id || '');
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'shopping');
     } finally {
       setBusy(false);
     }
@@ -608,7 +726,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
 
   const regenerate = async () => {
     if (!selectedPlanId) {
-      notifyError(new Error('Selecciona un plan para generar lista'));
+      notifyError(new Error('Selecciona un plan para generar lista'), 'shopping');
       return;
     }
 
@@ -618,7 +736,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
       setDraft(created);
       notifySuccess('Lista generada');
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'shopping');
     } finally {
       setBusy(false);
     }
@@ -670,7 +788,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
 
   const saveDraft = async () => {
     if (!draft?.id) {
-      notifyError(new Error('Primero genera una lista desde un plan'));
+      notifyError(new Error('Primero genera una lista desde un plan'), 'shopping');
       return;
     }
 
@@ -695,7 +813,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
       setDraft(updated);
       notifySuccess('Cambios guardados');
     } catch (err) {
-      notifyError(err);
+      notifyError(err, 'shopping');
     } finally {
       setBusy(false);
     }

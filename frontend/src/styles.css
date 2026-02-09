@@ -290,6 +290,11 @@ textarea {
   gap: 8px;
 }
 
+.ingredient-box-invalid {
+  border-color: #c75454;
+  box-shadow: inset 0 0 0 1px rgba(199, 84, 84, 0.35);
+}
+
 .suggestions {
   display: grid;
   gap: 4px;
