@@ -150,6 +150,12 @@ textarea {
   padding: 4px 2px;
 }
 
+.notice-text {
+  margin: 8px 0 0;
+  color: #ffd596;
+  font-size: 13px;
+}
+
 .card {
   background: linear-gradient(160deg, #171b26 0%, #121721 100%);
   border: 1px solid #2a2f3b;

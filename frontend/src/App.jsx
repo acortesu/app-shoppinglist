@@ -257,11 +257,17 @@ function AuthGate({ onLogin }) {
         setGoogleReady(true);
       }
 
+      // One Tap / FedCM availability can vary by browser policies.
+      // We keep the classic Google button as the primary path and treat
+      // One Tap prompt status as non-blocking signal only.
       window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          setLocalError(`Google Sign-In no disponible: ${notification.getNotDisplayedReason()}.`);
-        } else if (notification.isSkippedMoment()) {
-          setLocalError(`Google Sign-In omitido: ${notification.getSkippedReason()}.`);
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Non-blocking: do not surface as error if button sign-in still works.
+          console.debug('Google One Tap not active:', {
+            notDisplayed: notification.isNotDisplayed?.(),
+            skipped: notification.isSkippedMoment?.(),
+            reason: notification.getNotDisplayedReason?.() || notification.getSkippedReason?.()
+          });
         }
       });
     };
@@ -580,6 +586,7 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
   const [plans, setPlans] = useState([]);
   const [slots, setSlots] = useState({});
   const [planId, setPlanId] = useState('');
+  const [plannerNotice, setPlannerNotice] = useState('');
 
   const dayCount = period === 'WEEK' ? 7 : 14;
   const days = useMemo(
@@ -588,6 +595,7 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
   );
 
   const recipeNameById = useMemo(() => Object.fromEntries(recipes.map((r) => [r.id, r.name])), [recipes]);
+  const validRecipeIds = useMemo(() => new Set(recipes.map((r) => r.id)), [recipes]);
 
   const load = async () => {
     try {
@@ -611,15 +619,26 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
     if (!current) {
       setPlanId('');
       setSlots({});
+      setPlannerNotice('');
       return;
     }
     setPlanId(current.id);
     const map = {};
+    let dropped = 0;
     (current.slots || []).forEach((s) => {
-      map[`${s.date}|${s.mealType}`] = s.recipeId;
+      if (validRecipeIds.has(s.recipeId)) {
+        map[`${s.date}|${s.mealType}`] = s.recipeId;
+      } else {
+        dropped += 1;
+      }
     });
     setSlots(map);
-  }, [plans, startDate, period]);
+    setPlannerNotice(
+      dropped > 0
+        ? 'Se limpiaron slots con recetas eliminadas. Revisa y guarda el plan.'
+        : ''
+    );
+  }, [plans, startDate, period, validRecipeIds]);
 
   const setSlot = (date, mealType, recipeId) => {
     const key = `${date}|${mealType}`;
@@ -631,7 +650,9 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
     days.forEach((d) => {
       MEAL_TYPES.forEach((mealType) => {
         const recipeId = slots[`${d}|${mealType}`];
-        if (recipeId) payloadSlots.push({ date: d, mealType, recipeId });
+        if (recipeId && validRecipeIds.has(recipeId)) {
+          payloadSlots.push({ date: d, mealType, recipeId });
+        }
       });
     });
 
@@ -667,6 +688,7 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
           <button className="btn" onClick={() => setStartDate(isoDate(addDays(new Date(`${startDate}T00:00:00`), dayCount)))}>→</button>
         </div>
         <button className="link-btn" onClick={() => setStartDate(isoDate(startOfWeekMonday()))}>Ir a hoy</button>
+        {plannerNotice && <p className="notice-text">{plannerNotice}</p>}
       </header>
 
       <div className="stack">
@@ -676,13 +698,14 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
             {MEAL_TYPES.map((mealType) => {
               const key = `${date}|${mealType}`;
               const recipeId = slots[key] || '';
+              const hasValidRecipe = recipeId && recipeNameById[recipeId];
               return (
                 <div key={key} className="row between slot-row">
                   <div>
                     <div className="muted">{mealType}</div>
-                    <div>{recipeId ? recipeNameById[recipeId] : 'Sin planificar'}</div>
+                    <div>{hasValidRecipe ? recipeNameById[recipeId] : 'Sin planificar'}</div>
                   </div>
-                  <select className="slot-select" value={recipeId} onChange={(e) => setSlot(date, mealType, e.target.value)}>
+                  <select className="slot-select" value={hasValidRecipe ? recipeId : ''} onChange={(e) => setSlot(date, mealType, e.target.value)}>
                     <option value="">+</option>
                     {recipes.map((r) => (
                       <option key={r.id} value={r.id}>{r.name}</option>
@@ -704,15 +727,38 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
   const [plans, setPlans] = useState([]);
   const [draft, setDraft] = useState(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [validPlanIds, setValidPlanIds] = useState(new Set());
+  const [shoppingNotice, setShoppingNotice] = useState('');
 
   const load = async () => {
     try {
       setBusy(true);
-      const [allPlans, allDrafts] = await Promise.all([api.listPlans(), api.listShoppingLists()]);
+      const [allPlans, allDrafts, allRecipes] = await Promise.all([
+        api.listPlans(),
+        api.listShoppingLists(),
+        api.listRecipes()
+      ]);
+      const recipeIds = new Set((allRecipes || []).map((r) => r.id));
+      const nextValidPlanIds = new Set(
+        (allPlans || [])
+          .filter((p) => (p.slots || []).every((s) => recipeIds.has(s.recipeId)))
+          .map((p) => p.id)
+      );
+
       setPlans(allPlans || []);
-      const latest = allDrafts?.[0] || null;
-      setDraft(latest);
-      setSelectedPlanId(latest?.planId || allPlans?.[0]?.id || '');
+      setValidPlanIds(nextValidPlanIds);
+
+      const latestValidDraft = (allDrafts || []).find((d) => nextValidPlanIds.has(d.planId)) || null;
+      const firstValidPlanId = (allPlans || []).find((p) => nextValidPlanIds.has(p.id))?.id || '';
+      const nextSelectedPlanId = latestValidDraft?.planId || firstValidPlanId || '';
+
+      setDraft(latestValidDraft);
+      setSelectedPlanId(nextSelectedPlanId);
+      setShoppingNotice(
+        nextValidPlanIds.size < (allPlans || []).length
+          ? 'Hay planes con recetas eliminadas. Solo se muestran planes válidos para generar lista.'
+          : ''
+      );
     } catch (err) {
       notifyError(err, 'shopping');
     } finally {
@@ -727,6 +773,10 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
   const regenerate = async () => {
     if (!selectedPlanId) {
       notifyError(new Error('Selecciona un plan para generar lista'), 'shopping');
+      return;
+    }
+    if (!validPlanIds.has(selectedPlanId)) {
+      notifyError(new Error('El plan seleccionado tiene recetas eliminadas. Corrige el plan primero.'), 'shopping');
       return;
     }
 
@@ -829,11 +879,12 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
         <div className="row">
           <select className="input" value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)}>
             <option value="">Seleccionar plan</option>
-            {plans.map((p) => (
+            {plans.filter((p) => validPlanIds.has(p.id)).map((p) => (
               <option key={p.id} value={p.id}>{p.startDate} ({p.period})</option>
             ))}
           </select>
         </div>
+        {shoppingNotice && <p className="notice-text">{shoppingNotice}</p>}
         <div className="row">
           <button className="btn grow" onClick={regenerate}>↻ Regenerar desde plan</button>
           <button className="btn btn-primary" onClick={addManual}>+</button>
