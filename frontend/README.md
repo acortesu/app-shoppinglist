@@ -68,3 +68,17 @@ VITE_GOOGLE_CLIENT_ID=tu-google-web-client-id.apps.googleusercontent.com
 ```
 
 Debe coincidir con `GOOGLE_CLIENT_ID` del backend para que el token `id_token` pase validación de audiencia.
+
+La app valida en cliente:
+- formato JWT
+- expiración (`exp`)
+- `aud` contra `VITE_GOOGLE_CLIENT_ID`
+- `iss` de Google
+
+## Errores de API (`ApiError.code`)
+
+Hay mapeo contextual de códigos de negocio a mensajes UX para:
+- auth
+- recipe form
+- planner
+- shopping

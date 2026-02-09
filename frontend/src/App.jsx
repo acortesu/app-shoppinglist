@@ -184,15 +184,15 @@ function App() {
   return (
     <div className="mobile-shell">
       <main className="screen">
-        {tab === 'recipes' && (
-          <RecipesPage setBusy={setBusy} notifyError={notifyError} notifySuccess={notifySuccess} />
-        )}
-        {tab === 'planner' && (
-          <PlannerPage setBusy={setBusy} notifyError={notifyError} notifySuccess={notifySuccess} />
-        )}
-        {tab === 'shopping' && (
-          <ShoppingPage setBusy={setBusy} notifyError={notifyError} notifySuccess={notifySuccess} />
-        )}
+        <section className={tab === 'recipes' ? '' : 'hidden'}>
+          <RecipesPage isActive={tab === 'recipes'} setBusy={setBusy} notifyError={notifyError} notifySuccess={notifySuccess} />
+        </section>
+        <section className={tab === 'planner' ? '' : 'hidden'}>
+          <PlannerPage isActive={tab === 'planner'} setBusy={setBusy} notifyError={notifyError} notifySuccess={notifySuccess} />
+        </section>
+        <section className={tab === 'shopping' ? '' : 'hidden'}>
+          <ShoppingPage isActive={tab === 'shopping'} setBusy={setBusy} notifyError={notifyError} notifySuccess={notifySuccess} />
+        </section>
       </main>
 
       {error && <div className="banner banner-error">{error}</div>}
@@ -307,7 +307,7 @@ function AuthGate({ onLogin }) {
   );
 }
 
-function RecipesPage({ setBusy, notifyError, notifySuccess }) {
+function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [recipes, setRecipes] = useState([]);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
@@ -417,9 +417,10 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
           quantity: String(it.quantity ?? ''),
           unit: it.unit || 'GRAM',
           query: '',
-          options: []
+          options: [],
+          allowedUnits: null
         }))
-      : [{ ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [] }]
+      : [{ ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [], allowedUnits: null }]
   );
   const [formError, setFormError] = useState('');
   const [invalidIngredientIndexes, setInvalidIngredientIndexes] = useState([]);
@@ -431,7 +432,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
   };
 
   const searchIngredients = async (idx, q) => {
-    updateIngredient(idx, { query: q });
+    updateIngredient(idx, { query: q, ingredientId: '', allowedUnits: null });
     if (q.trim().length < 2) {
       updateIngredient(idx, { options: [] });
       return;
@@ -454,7 +455,8 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
       return {
         ingredientId: identifier,
         quantity: Number(it.quantity),
-        unit: it.unit
+        unit: it.unit,
+        allowedUnits: it.allowedUnits
       };
     });
 
@@ -468,6 +470,16 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
       return;
     }
 
+    const invalidUnitIdx = normalizedIngredients
+      .map((it, idx) => (Array.isArray(it.allowedUnits) && it.allowedUnits.length > 0 && !it.allowedUnits.includes(it.unit) ? idx : -1))
+      .filter((idx) => idx >= 0);
+
+    if (invalidUnitIdx.length > 0) {
+      setInvalidIngredientIndexes(invalidUnitIdx);
+      setFormError('La unidad seleccionada no está permitida para uno o más ingredientes.');
+      return;
+    }
+
     const payload = {
       name,
       type,
@@ -477,7 +489,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
-      ingredients: normalizedIngredients
+      ingredients: normalizedIngredients.map(({ ingredientId, quantity, unit }) => ({ ingredientId, quantity, unit }))
     };
 
     try {
@@ -539,7 +551,17 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
                     type="button"
                     key={opt.id}
                     className="suggestion"
-                    onClick={() => updateIngredient(idx, { ingredientId: opt.id, query: opt.name, options: [] })}
+                    onClick={() => {
+                      const allowedUnits = (opt.allowedUnits || []).map(String);
+                      const nextUnit = allowedUnits.includes(it.unit) ? it.unit : (allowedUnits[0] || 'GRAM');
+                      updateIngredient(idx, {
+                        ingredientId: opt.id,
+                        query: opt.name,
+                        unit: nextUnit,
+                        allowedUnits,
+                        options: []
+                      });
+                    }}
                   >
                     {opt.name}
                   </button>
@@ -558,12 +580,12 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
                 required
               />
               <select className="input" value={it.unit} onChange={(e) => updateIngredient(idx, { unit: e.target.value })}>
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                {(Array.isArray(it.allowedUnits) && it.allowedUnits.length > 0 ? it.allowedUnits : UNITS).map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
           </div>
         ))}
-        <button type="button" className="btn" onClick={() => setIngredients((prev) => [...prev, { ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [] }])}>+ Agregar ingrediente</button>
+        <button type="button" className="btn" onClick={() => setIngredients((prev) => [...prev, { ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [], allowedUnits: null }])}>+ Agregar ingrediente</button>
         {formError && <p className="auth-error">{formError}</p>}
 
         <label>Instrucciones</label>
@@ -579,7 +601,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
   );
 }
 
-function PlannerPage({ setBusy, notifyError, notifySuccess }) {
+function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [period, setPeriod] = useState('WEEK');
   const [startDate, setStartDate] = useState(isoDate(startOfWeekMonday()));
   const [recipes, setRecipes] = useState([]);
@@ -587,6 +609,9 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
   const [slots, setSlots] = useState({});
   const [planId, setPlanId] = useState('');
   const [plannerNotice, setPlannerNotice] = useState('');
+  const [selectedDay, setSelectedDay] = useState('');
+  const [pickerSlot, setPickerSlot] = useState(null);
+  const [recipeQuery, setRecipeQuery] = useState('');
 
   const dayCount = period === 'WEEK' ? 7 : 14;
   const days = useMemo(
@@ -596,6 +621,11 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
 
   const recipeNameById = useMemo(() => Object.fromEntries(recipes.map((r) => [r.id, r.name])), [recipes]);
   const validRecipeIds = useMemo(() => new Set(recipes.map((r) => r.id)), [recipes]);
+  const selectedDayRecipes = useMemo(() => {
+    const q = recipeQuery.trim().toLowerCase();
+    if (!q) return recipes;
+    return recipes.filter((r) => r.name.toLowerCase().includes(q));
+  }, [recipes, recipeQuery]);
 
   const load = async () => {
     try {
@@ -640,9 +670,20 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
     );
   }, [plans, startDate, period, validRecipeIds]);
 
+  useEffect(() => {
+    if (!days.length) return;
+    if (!selectedDay || !days.includes(selectedDay)) {
+      setSelectedDay(days[0]);
+    }
+  }, [days, selectedDay]);
+
   const setSlot = (date, mealType, recipeId) => {
     const key = `${date}|${mealType}`;
     setSlots((prev) => ({ ...prev, [key]: recipeId || '' }));
+  };
+
+  const clearSlot = (date, mealType) => {
+    setSlot(date, mealType, '');
   };
 
   const savePlan = async () => {
@@ -692,11 +733,22 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
       </header>
 
       <div className="stack">
-        {days.map((date) => (
-          <article key={date} className="card">
-            <h3 className="capitalize">{toPrettyDate(date)}</h3>
+        <div className="day-scroller">
+          {days.map((date) => (
+            <button
+              key={date}
+              className={`day-chip ${selectedDay === date ? 'active' : ''}`}
+              onClick={() => setSelectedDay(date)}
+            >
+              {toPrettyDate(date)}
+            </button>
+          ))}
+        </div>
+        {selectedDay && (
+          <article key={selectedDay} className="card">
+            <h3 className="capitalize">{toPrettyDate(selectedDay)}</h3>
             {MEAL_TYPES.map((mealType) => {
-              const key = `${date}|${mealType}`;
+              const key = `${selectedDay}|${mealType}`;
               const recipeId = slots[key] || '';
               const hasValidRecipe = recipeId && recipeNameById[recipeId];
               return (
@@ -705,30 +757,70 @@ function PlannerPage({ setBusy, notifyError, notifySuccess }) {
                     <div className="muted">{mealType}</div>
                     <div>{hasValidRecipe ? recipeNameById[recipeId] : 'Sin planificar'}</div>
                   </div>
-                  <select className="slot-select" value={hasValidRecipe ? recipeId : ''} onChange={(e) => setSlot(date, mealType, e.target.value)}>
-                    <option value="">+</option>
-                    {recipes.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
+                  <div className="row">
+                    <button
+                      className="btn slot-picker-btn"
+                      onClick={() => {
+                        setPickerSlot({ date: selectedDay, mealType });
+                        setRecipeQuery('');
+                      }}
+                    >
+                      {hasValidRecipe ? 'Cambiar' : '+'}
+                    </button>
+                    {hasValidRecipe && (
+                      <button className="btn slot-clear-btn" onClick={() => clearSlot(selectedDay, mealType)}>×</button>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </article>
-        ))}
+        )}
       </div>
 
       <button className="btn btn-primary sticky-cta" onClick={savePlan}>Guardar plan</button>
+      {pickerSlot && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="row between">
+              <h2>Seleccionar receta</h2>
+              <button type="button" onClick={() => setPickerSlot(null)}>✕</button>
+            </div>
+            <input
+              className="input"
+              placeholder="Buscar receta..."
+              value={recipeQuery}
+              onChange={(e) => setRecipeQuery(e.target.value)}
+            />
+            <div className="stack no-pad">
+              {selectedDayRecipes.map((r) => (
+                <button
+                  key={r.id}
+                  className="btn recipe-picker-item"
+                  onClick={() => {
+                    setSlot(pickerSlot.date, pickerSlot.mealType, r.id);
+                    setPickerSlot(null);
+                  }}
+                >
+                  {r.name}
+                </button>
+              ))}
+              {selectedDayRecipes.length === 0 && <p className="muted">No hay recetas para ese filtro.</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
 
-function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
+function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [plans, setPlans] = useState([]);
   const [draft, setDraft] = useState(null);
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [validPlanIds, setValidPlanIds] = useState(new Set());
   const [shoppingNotice, setShoppingNotice] = useState('');
+  const [recipesById, setRecipesById] = useState({});
 
   const load = async () => {
     try {
@@ -739,6 +831,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
         api.listRecipes()
       ]);
       const recipeIds = new Set((allRecipes || []).map((r) => r.id));
+      setRecipesById(Object.fromEntries((allRecipes || []).map((r) => [r.id, r])));
       const nextValidPlanIds = new Set(
         (allPlans || [])
           .filter((p) => (p.slots || []).every((s) => recipeIds.has(s.recipeId)))
@@ -792,12 +885,77 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
     }
   };
 
+  const cleanPlanAndRegenerate = async () => {
+    if (!selectedPlanId) {
+      notifyError(new Error('Selecciona un plan primero.'), 'shopping');
+      return;
+    }
+    const plan = plans.find((p) => p.id === selectedPlanId);
+    if (!plan) {
+      notifyError(new Error('Plan no encontrado en estado local.'), 'shopping');
+      return;
+    }
+
+    const cleanedSlots = (plan.slots || []).filter((slot) => Boolean(recipesById[slot.recipeId]));
+    const removed = (plan.slots || []).length - cleanedSlots.length;
+
+    try {
+      setBusy(true);
+      if (removed > 0) {
+        await api.updatePlan(plan.id, {
+          startDate: plan.startDate,
+          period: plan.period,
+          slots: cleanedSlots
+        });
+      }
+      const created = await api.generateShoppingList(plan.id, `clean-gen-${Date.now()}`);
+      setDraft(created);
+      notifySuccess(
+        removed > 0
+          ? `Plan limpiado (${removed} slot${removed > 1 ? 's' : ''}) y lista regenerada`
+          : 'Lista regenerada desde plan limpio'
+      );
+      await load();
+    } catch (err) {
+      notifyError(err, 'shopping');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const updateItem = (id, patch) => {
     setDraft((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
         items: prev.items.map((it) => (it.id === id ? { ...it, ...patch } : it))
+      };
+    });
+  };
+
+  const moveItem = (id, direction) => {
+    setDraft((prev) => {
+      if (!prev?.items?.length) return prev;
+      const sorted = [...prev.items].sort((a, b) => a.sortOrder - b.sortOrder);
+      const idx = sorted.findIndex((it) => it.id === id);
+      if (idx < 0) return prev;
+      const nextIdx = idx + direction;
+      if (nextIdx < 0 || nextIdx >= sorted.length) return prev;
+      const [moved] = sorted.splice(idx, 1);
+      sorted.splice(nextIdx, 0, moved);
+      return {
+        ...prev,
+        items: sorted.map((it, order) => ({ ...it, sortOrder: order }))
+      };
+    });
+  };
+
+  const bulkSetBought = (value) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((it) => ({ ...it, bought: value }))
       };
     });
   };
@@ -887,19 +1045,24 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
         {shoppingNotice && <p className="notice-text">{shoppingNotice}</p>}
         <div className="row">
           <button className="btn grow" onClick={regenerate}>↻ Regenerar desde plan</button>
+          <button className="btn grow" onClick={cleanPlanAndRegenerate}>🧹 Limpiar + regenerar</button>
           <button className="btn btn-primary" onClick={addManual}>+</button>
+        </div>
+        <div className="row">
+          <button className="btn grow" onClick={() => bulkSetBought(false)}>Marcar todo por comprar</button>
+          <button className="btn grow" onClick={() => bulkSetBought(true)}>Marcar todo comprado</button>
         </div>
       </header>
 
       <div className="stack">
         <h4 className="section-title">POR COMPRAR ({unbought.length})</h4>
         {unbought.map((item) => (
-          <ShoppingItem key={item.id} item={item} onChange={updateItem} onDelete={removeItem} />
+          <ShoppingItem key={item.id} item={item} onChange={updateItem} onDelete={removeItem} onMove={moveItem} />
         ))}
 
         <h4 className="section-title">COMPRADO ({bought.length})</h4>
         {bought.map((item) => (
-          <ShoppingItem key={item.id} item={item} onChange={updateItem} onDelete={removeItem} />
+          <ShoppingItem key={item.id} item={item} onChange={updateItem} onDelete={removeItem} onMove={moveItem} />
         ))}
 
         {!draft && <p className="muted">Genera una lista desde un plan para empezar.</p>}
@@ -910,7 +1073,7 @@ function ShoppingPage({ setBusy, notifyError, notifySuccess }) {
   );
 }
 
-function ShoppingItem({ item, onChange, onDelete }) {
+function ShoppingItem({ item, onChange, onDelete, onMove }) {
   return (
     <article className="card">
       <div className="row between">
@@ -918,7 +1081,11 @@ function ShoppingItem({ item, onChange, onDelete }) {
           <input type="checkbox" checked={!!item.bought} onChange={(e) => onChange(item.id, { bought: e.target.checked })} />
           <input className="inline-name" value={item.name} onChange={(e) => onChange(item.id, { name: e.target.value })} />
         </label>
-        <button onClick={() => onDelete(item.id)}>🗑</button>
+        <div className="row">
+          <button onClick={() => onMove(item.id, -1)}>↑</button>
+          <button onClick={() => onMove(item.id, 1)}>↓</button>
+          <button onClick={() => onDelete(item.id)}>🗑</button>
+        </div>
       </div>
       <div className="row gap-sm">
         <input className="input" type="number" min="0.01" step="0.01" value={item.quantity} onChange={(e) => onChange(item.id, { quantity: e.target.value })} />
