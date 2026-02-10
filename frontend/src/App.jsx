@@ -127,6 +127,14 @@ function addDays(date, days) {
   return d;
 }
 
+function measurementTypeFromUnit(unit) {
+  if (['GRAM', 'KILOGRAM'].includes(unit)) return 'WEIGHT';
+  if (['MILLILITER', 'LITER', 'CUP', 'TABLESPOON', 'TEASPOON'].includes(unit)) return 'VOLUME';
+  if (['PIECE'].includes(unit)) return 'UNIT';
+  if (['PINCH', 'TO_TASTE'].includes(unit)) return 'TO_TASTE';
+  return 'UNIT';
+}
+
 function App() {
   const [tab, setTab] = useState('recipes');
   const [busy, setBusy] = useState(false);
@@ -424,6 +432,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
   );
   const [formError, setFormError] = useState('');
   const [invalidIngredientIndexes, setInvalidIngredientIndexes] = useState([]);
+  const [creatingCustomIdx, setCreatingCustomIdx] = useState(-1);
 
   const updateIngredient = (idx, patch) => {
     if (formError) setFormError('');
@@ -442,6 +451,36 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
       updateIngredient(idx, { options: options || [] });
     } catch {
       updateIngredient(idx, { options: [] });
+    }
+  };
+
+  const createCustomIngredientForRow = async (idx) => {
+    const row = ingredients[idx];
+    const name = (row?.query || '').trim();
+    if (!name) {
+      setFormError('Escribe el nombre del ingrediente antes de crear custom.');
+      setInvalidIngredientIndexes([idx]);
+      return;
+    }
+
+    try {
+      setCreatingCustomIdx(idx);
+      const measurementType = measurementTypeFromUnit(row.unit);
+      const created = await api.createCustomIngredient({ name, measurementType });
+      const allowedUnits = (created.allowedUnits || []).map(String);
+      updateIngredient(idx, {
+        ingredientId: created.id,
+        query: created.name,
+        allowedUnits,
+        unit: allowedUnits.includes(row.unit) ? row.unit : (allowedUnits[0] || row.unit),
+        options: []
+      });
+      setFormError('');
+      setInvalidIngredientIndexes([]);
+    } catch (err) {
+      notifyError(err, 'recipe_form');
+    } finally {
+      setCreatingCustomIdx(-1);
     }
   };
 
@@ -568,6 +607,16 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
                 ))}
               </div>
             )}
+            {it.query?.trim() && !it.ingredientId && (
+              <button
+                type="button"
+                className="btn custom-ingredient-btn"
+                onClick={() => createCustomIngredientForRow(idx)}
+                disabled={creatingCustomIdx === idx}
+              >
+                {creatingCustomIdx === idx ? 'Creando...' : `Crear "${it.query.trim()}" como custom`}
+              </button>
+            )}
             <div className="row">
               <input
                 className="input"
@@ -609,6 +658,7 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [slots, setSlots] = useState({});
   const [planId, setPlanId] = useState('');
   const [plannerNotice, setPlannerNotice] = useState('');
+  const [plannerInlineError, setPlannerInlineError] = useState('');
   const [selectedDay, setSelectedDay] = useState('');
   const [pickerSlot, setPickerSlot] = useState(null);
   const [recipeQuery, setRecipeQuery] = useState('');
@@ -679,6 +729,7 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
 
   const setSlot = (date, mealType, recipeId) => {
     const key = `${date}|${mealType}`;
+    if (plannerInlineError) setPlannerInlineError('');
     setSlots((prev) => ({ ...prev, [key]: recipeId || '' }));
   };
 
@@ -687,6 +738,7 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
   };
 
   const savePlan = async () => {
+    setPlannerInlineError('');
     const payloadSlots = [];
     days.forEach((d) => {
       MEAL_TYPES.forEach((mealType) => {
@@ -708,6 +760,7 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
       await load();
       notifySuccess('Plan guardado');
     } catch (err) {
+      setPlannerInlineError(mapApiError(err, 'planner'));
       notifyError(err, 'planner');
     } finally {
       setBusy(false);
@@ -730,6 +783,7 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
         </div>
         <button className="link-btn" onClick={() => setStartDate(isoDate(startOfWeekMonday()))}>Ir a hoy</button>
         {plannerNotice && <p className="notice-text">{plannerNotice}</p>}
+        {plannerInlineError && <p className="field-error">{plannerInlineError}</p>}
       </header>
 
       <div className="stack">
@@ -821,6 +875,7 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [validPlanIds, setValidPlanIds] = useState(new Set());
   const [shoppingNotice, setShoppingNotice] = useState('');
   const [recipesById, setRecipesById] = useState({});
+  const [draggingId, setDraggingId] = useState('');
 
   const load = async () => {
     try {
@@ -950,6 +1005,23 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
     });
   };
 
+  const moveItemByDrop = (sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    setDraft((prev) => {
+      if (!prev?.items?.length) return prev;
+      const sorted = [...prev.items].sort((a, b) => a.sortOrder - b.sortOrder);
+      const sourceIdx = sorted.findIndex((it) => it.id === sourceId);
+      const targetIdx = sorted.findIndex((it) => it.id === targetId);
+      if (sourceIdx < 0 || targetIdx < 0) return prev;
+      const [moved] = sorted.splice(sourceIdx, 1);
+      sorted.splice(targetIdx, 0, moved);
+      return {
+        ...prev,
+        items: sorted.map((it, order) => ({ ...it, sortOrder: order }))
+      };
+    });
+  };
+
   const bulkSetBought = (value) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -1057,12 +1129,34 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
       <div className="stack">
         <h4 className="section-title">POR COMPRAR ({unbought.length})</h4>
         {unbought.map((item) => (
-          <ShoppingItem key={item.id} item={item} onChange={updateItem} onDelete={removeItem} onMove={moveItem} />
+          <ShoppingItem
+            key={item.id}
+            item={item}
+            onChange={updateItem}
+            onDelete={removeItem}
+            onMove={moveItem}
+            onDragStart={(id) => setDraggingId(id)}
+            onDropOn={(targetId) => {
+              moveItemByDrop(draggingId, targetId);
+              setDraggingId('');
+            }}
+          />
         ))}
 
         <h4 className="section-title">COMPRADO ({bought.length})</h4>
         {bought.map((item) => (
-          <ShoppingItem key={item.id} item={item} onChange={updateItem} onDelete={removeItem} onMove={moveItem} />
+          <ShoppingItem
+            key={item.id}
+            item={item}
+            onChange={updateItem}
+            onDelete={removeItem}
+            onMove={moveItem}
+            onDragStart={(id) => setDraggingId(id)}
+            onDropOn={(targetId) => {
+              moveItemByDrop(draggingId, targetId);
+              setDraggingId('');
+            }}
+          />
         ))}
 
         {!draft && <p className="muted">Genera una lista desde un plan para empezar.</p>}
@@ -1073,15 +1167,22 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
   );
 }
 
-function ShoppingItem({ item, onChange, onDelete, onMove }) {
+function ShoppingItem({ item, onChange, onDelete, onMove, onDragStart, onDropOn }) {
   return (
-    <article className="card">
+    <article
+      className="card"
+      draggable
+      onDragStart={() => onDragStart(item.id)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={() => onDropOn(item.id)}
+    >
       <div className="row between">
         <label className="row gap-sm">
           <input type="checkbox" checked={!!item.bought} onChange={(e) => onChange(item.id, { bought: e.target.checked })} />
           <input className="inline-name" value={item.name} onChange={(e) => onChange(item.id, { name: e.target.value })} />
         </label>
         <div className="row">
+          <button title="Arrastrar">⋮⋮</button>
           <button onClick={() => onMove(item.id, -1)}>↑</button>
           <button onClick={() => onMove(item.id, 1)}>↓</button>
           <button onClick={() => onDelete(item.id)}>🗑</button>

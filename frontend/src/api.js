@@ -85,6 +85,13 @@ export const api = {
     return request(`/api/ingredients${query}`);
   },
 
+  async createCustomIngredient(payload) {
+    return request('/api/ingredients/custom', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
   async createRecipe(payload) {
     const response = await request('/api/recipes', {
       method: 'POST',

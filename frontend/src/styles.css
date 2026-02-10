@@ -160,6 +160,12 @@ textarea {
   font-size: 13px;
 }
 
+.field-error {
+  margin: 6px 0 0;
+  color: #ffb0b0;
+  font-size: 13px;
+}
+
 .card {
   background: linear-gradient(160deg, #171b26 0%, #121721 100%);
   border: 1px solid #2a2f3b;
@@ -349,6 +355,11 @@ textarea {
 
 .recipe-picker-item {
   text-align: left;
+}
+
+.custom-ingredient-btn {
+  border-style: dashed;
+  font-size: 13px;
 }
 
 .banner {
