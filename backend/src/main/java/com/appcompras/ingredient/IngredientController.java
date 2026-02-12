@@ -35,7 +35,11 @@ public class IngredientController {
             @RequestParam(required = false) String q
     ) {
         return ingredientCatalogService.list(q).stream()
-                .map(IngredientResponse::from)
+                .map(item -> IngredientResponse.from(
+                        item,
+                        ingredientCatalogService.preferredLabelForItem(item, q),
+                        ingredientCatalogService.aliasesForItem(item)
+                ))
                 .toList();
     }
 
@@ -47,6 +51,10 @@ public class IngredientController {
                 request.name(),
                 request.measurementType()
         );
-        return IngredientResponse.from(item);
+        return IngredientResponse.from(
+                item,
+                ingredientCatalogService.preferredLabelForItem(item, null),
+                ingredientCatalogService.aliasesForItem(item)
+        );
     }
 }

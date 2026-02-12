@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.Normalizer;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +35,7 @@ public class IngredientCatalogService {
 
     private final ConcurrentMap<String, IngredientCatalogItem> seedCatalog = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> seedAliasToIngredientId = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, List<String>> seedAliasesByIngredientId = new ConcurrentHashMap<>();
 
     private final ConcurrentMap<String, IngredientCatalogItem> localCustomCatalog = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, String> localCustomAliasToIngredientId = new ConcurrentHashMap<>();
@@ -151,13 +154,55 @@ public class IngredientCatalogService {
                 .toList();
     }
 
+    public List<String> aliasesForItem(IngredientCatalogItem item) {
+        if (item == null) {
+            return List.of();
+        }
+        List<String> aliases = seedAliasesByIngredientId.get(item.ingredientId());
+        if (aliases != null && !aliases.isEmpty()) {
+            return aliases.stream()
+                    .map(this::toDisplayCase)
+                    .distinct()
+                    .toList();
+        }
+        return List.of(toDisplayCase(item.displayName()));
+    }
+
+    public String preferredLabelForItem(IngredientCatalogItem item, String query) {
+        if (item == null) {
+            return "";
+        }
+        List<String> aliases = seedAliasesByIngredientId.get(item.ingredientId());
+        if (aliases == null || aliases.isEmpty()) {
+            return item.displayName();
+        }
+        if (query != null && !query.isBlank()) {
+            String normalizedQuery = normalizeAlias(query);
+            Optional<String> startsWithMatch = aliases.stream()
+                    .filter(alias -> normalizeAlias(alias).startsWith(normalizedQuery))
+                    .findFirst();
+            if (startsWithMatch.isPresent()) {
+                return toDisplayCase(startsWithMatch.get());
+            }
+
+            Optional<String> containsMatch = aliases.stream()
+                    .filter(alias -> normalizeAlias(alias).contains(normalizedQuery))
+                    .findFirst();
+            if (containsMatch.isPresent()) {
+                return toDisplayCase(containsMatch.get());
+            }
+        }
+        return toDisplayCase(aliases.get(0));
+    }
+
     public IngredientCatalogItem createCustomIngredient(String name, MeasurementType measurementType) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Ingredient name is required");
         }
 
         String trimmedName = name.trim();
-        String normalizedName = normalizeAlias(trimmedName);
+        String canonicalName = toDisplayCase(trimmedName);
+        String normalizedName = normalizeAlias(canonicalName);
         Optional<String> existing = resolveIngredientId(trimmedName);
         if (existing.isPresent()) {
             throw new IllegalArgumentException("Ingredient already exists: " + existing.get());
@@ -169,7 +214,7 @@ public class IngredientCatalogService {
             IngredientCustomEntity entity = new IngredientCustomEntity();
             entity.setId(id);
             entity.setUserId(currentUserId());
-            entity.setName(trimmedName);
+            entity.setName(canonicalName);
             entity.setNormalizedName(normalizedName);
             entity.setMeasurementType(measurementType);
             entity.setCreatedAt(Instant.now());
@@ -182,11 +227,11 @@ public class IngredientCatalogService {
             }
         }
 
-        IngredientCatalogItem localItem = buildCustomItem(id, trimmedName, measurementType);
+        IngredientCatalogItem localItem = buildCustomItem(id, canonicalName, measurementType);
         localCustomCatalog.put(id, localItem);
         addLocalCustomAlias(id, normalizedName);
         addLocalCustomAlias(id, id);
-        addLocalCustomAlias(id, trimmedName);
+        addLocalCustomAlias(id, canonicalName);
         return localItem;
     }
 
@@ -217,7 +262,7 @@ public class IngredientCatalogService {
                     id,
                     name,
                     MeasurementType.VOLUME,
-                    Set.of(Unit.MILLILITER, Unit.LITER),
+                    Set.of(Unit.MILLILITER, Unit.LITER, Unit.CUP, Unit.TABLESPOON, Unit.TEASPOON),
                     1.0,
                     Unit.LITER
             );
@@ -233,7 +278,7 @@ public class IngredientCatalogService {
                     id,
                     name,
                     MeasurementType.TO_TASTE,
-                    Set.of(Unit.TO_TASTE),
+                    Set.of(Unit.PINCH, Unit.TO_TASTE),
                     0.0,
                     Unit.TO_TASTE
             );
@@ -291,12 +336,18 @@ public class IngredientCatalogService {
         addSeedAlias(id, id);
         addSeedAlias(id, displayName);
 
+        List<String> aliases = new ArrayList<>();
         JsonNode aliasesNode = node.path("aliases");
         if (aliasesNode.isArray()) {
             for (JsonNode aliasNode : aliasesNode) {
-                addSeedAlias(id, aliasNode.asText());
+                String alias = aliasNode.asText();
+                addSeedAlias(id, alias);
+                if (!alias.isBlank()) {
+                    aliases.add(alias.trim());
+                }
             }
         }
+        seedAliasesByIngredientId.put(id, List.copyOf(aliases));
     }
 
     private String requiredText(JsonNode node, String field) {
@@ -358,5 +409,16 @@ public class IngredientCatalogService {
                 .replaceAll("\\p{M}", "");
         String normalized = withoutAccent.replaceAll("[^a-z0-9]+", "-");
         return normalized.replaceAll("^-+|-+$", "");
+    }
+
+    private String toDisplayCase(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return Arrays.stream(value.trim().toLowerCase(Locale.forLanguageTag("es-CR")).split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .map(token -> Character.toUpperCase(token.charAt(0)) + token.substring(1))
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
     }
 }

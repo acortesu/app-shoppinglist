@@ -362,6 +362,27 @@ textarea {
   font-size: 13px;
 }
 
+.icon-btn {
+  border: 1px solid #334054;
+  background: #1b2230;
+  color: #d4d9e3;
+  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.icon-btn.danger {
+  border-color: #5d3030;
+  color: #ffc3c3;
+}
+
 .banner {
   position: fixed;
   left: 50%;

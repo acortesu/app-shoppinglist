@@ -33,7 +33,9 @@ class IngredientControllerTest {
     void listIngredientsCanSearchByAlias() throws Exception {
         mockMvc.perform(get("/api/ingredients").param("q", "arroz"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("rice"));
+                .andExpect(jsonPath("$[0].id").value("rice"))
+                .andExpect(jsonPath("$[0].preferredLabel").value("Arroz"))
+                .andExpect(jsonPath("$[0].aliases").isArray());
     }
 
     @Test

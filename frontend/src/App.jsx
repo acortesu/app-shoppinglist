@@ -4,7 +4,26 @@ import { api } from './api';
 const TABS = ['recipes', 'planner', 'shopping'];
 const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'];
 const PERIODS = ['WEEK', 'FORTNIGHT'];
+const MEASUREMENT_TYPES = ['WEIGHT', 'VOLUME', 'UNIT', 'TO_TASTE'];
 const UNITS = ['GRAM', 'KILOGRAM', 'MILLILITER', 'LITER', 'CUP', 'TABLESPOON', 'TEASPOON', 'PIECE', 'PINCH', 'TO_TASTE'];
+const UNIT_LABELS_ES = {
+  GRAM: 'gramo',
+  KILOGRAM: 'kilogramo',
+  MILLILITER: 'mililitro',
+  LITER: 'litro',
+  CUP: 'taza',
+  TABLESPOON: 'cucharada',
+  TEASPOON: 'cucharadita',
+  PIECE: 'unidad (pieza/paquete)',
+  PINCH: 'pizca',
+  TO_TASTE: 'al gusto'
+};
+const MEASUREMENT_TYPE_LABELS_ES = {
+  WEIGHT: 'Peso',
+  VOLUME: 'Volumen',
+  UNIT: 'Unidades',
+  TO_TASTE: 'Al gusto'
+};
 const REQUIRE_AUTH = (import.meta.env.VITE_REQUIRE_AUTH ?? 'true') !== 'false';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const TOKEN_STORAGE_KEY = 'appcompras_id_token';
@@ -133,6 +152,47 @@ function measurementTypeFromUnit(unit) {
   if (['PIECE'].includes(unit)) return 'UNIT';
   if (['PINCH', 'TO_TASTE'].includes(unit)) return 'TO_TASTE';
   return 'UNIT';
+}
+
+function unitsForMeasurementType(type) {
+  if (type === 'WEIGHT') return ['GRAM', 'KILOGRAM'];
+  if (type === 'VOLUME') return ['MILLILITER', 'LITER', 'CUP', 'TABLESPOON', 'TEASPOON'];
+  if (type === 'UNIT') return ['PIECE'];
+  if (type === 'TO_TASTE') return ['PINCH', 'TO_TASTE'];
+  return UNITS;
+}
+
+function unitLabel(unit) {
+  return UNIT_LABELS_ES[unit] || unit;
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function ingredientMatchesQuery(name, query) {
+  const normalizedQuery = normalizeText(query);
+  const normalizedName = normalizeText(name);
+  if (!normalizedQuery || !normalizedName) return false;
+  if (normalizedName.startsWith(normalizedQuery)) return true;
+  return normalizedName.split(/\s+/).some((token) => token.startsWith(normalizedQuery));
+}
+
+function ingredientLabel(opt) {
+  return opt?.preferredLabel || opt?.name || '';
+}
+
+function toDisplayCase(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  return normalized
+    .split(/\s+/)
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(' ');
 }
 
 function App() {
@@ -426,9 +486,10 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
           unit: it.unit || 'GRAM',
           query: '',
           options: [],
-          allowedUnits: null
+          allowedUnits: null,
+          customMeasurementType: 'UNIT'
         }))
-      : [{ ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [], allowedUnits: null }]
+      : [{ ingredientId: '', quantity: '', unit: 'PIECE', query: '', options: [], allowedUnits: null, customMeasurementType: 'UNIT' }]
   );
   const [formError, setFormError] = useState('');
   const [invalidIngredientIndexes, setInvalidIngredientIndexes] = useState([]);
@@ -448,10 +509,25 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
     }
     try {
       const options = await api.listIngredients(q.trim());
-      updateIngredient(idx, { options: options || [] });
+      const byNamePrefix = (options || []).filter((opt) => {
+        if (ingredientMatchesQuery(ingredientLabel(opt), q)) return true;
+        if (Array.isArray(opt.aliases)) {
+          return opt.aliases.some((alias) => ingredientMatchesQuery(alias, q));
+        }
+        return ingredientMatchesQuery(opt.name, q);
+      });
+      const filtered = byNamePrefix.length > 0 ? byNamePrefix : (options || []);
+      updateIngredient(idx, { options: filtered });
     } catch {
       updateIngredient(idx, { options: [] });
     }
+  };
+
+  const removeIngredient = (idx) => {
+    if (ingredients.length <= 1) return;
+    if (formError) setFormError('');
+    if (invalidIngredientIndexes.length) setInvalidIngredientIndexes([]);
+    setIngredients((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const createCustomIngredientForRow = async (idx) => {
@@ -465,7 +541,7 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
 
     try {
       setCreatingCustomIdx(idx);
-      const measurementType = measurementTypeFromUnit(row.unit);
+      const measurementType = row.customMeasurementType || measurementTypeFromUnit(row.unit);
       const created = await api.createCustomIngredient({ name, measurementType });
       const allowedUnits = (created.allowedUnits || []).map(String);
       updateIngredient(idx, {
@@ -473,11 +549,39 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
         query: created.name,
         allowedUnits,
         unit: allowedUnits.includes(row.unit) ? row.unit : (allowedUnits[0] || row.unit),
+        customMeasurementType: measurementType,
         options: []
       });
       setFormError('');
       setInvalidIngredientIndexes([]);
     } catch (err) {
+      const message = err?.payload?.error || err?.message || '';
+      const existingMatch = message.match(/Ingredient already exists:\s*([^\s.]+)/i);
+      const existingId = existingMatch?.[1]?.trim();
+      if (existingId) {
+        try {
+          const [byName, byId] = await Promise.all([
+            api.listIngredients(name),
+            api.listIngredients(existingId)
+          ]);
+          const existing = [...(byName || []), ...(byId || [])].find((opt) => opt.id === existingId);
+          if (existing) {
+            const allowedUnits = (existing.allowedUnits || []).map(String);
+            updateIngredient(idx, {
+              ingredientId: existing.id,
+              query: ingredientLabel(existing),
+              allowedUnits,
+              unit: allowedUnits.includes(row.unit) ? row.unit : (allowedUnits[0] || row.unit),
+              options: []
+            });
+            setFormError('');
+            setInvalidIngredientIndexes([]);
+            return;
+          }
+        } catch {
+          // If lookup fails, fallback to default error handling below.
+        }
+      }
       notifyError(err, 'recipe_form');
     } finally {
       setCreatingCustomIdx(-1);
@@ -577,6 +681,10 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
         <label>Ingredientes</label>
         {ingredients.map((it, idx) => (
           <div key={idx} className={`ingredient-box ${invalidIngredientIndexes.includes(idx) ? 'ingredient-box-invalid' : ''}`}>
+            <div className="row between">
+              <span className="tiny muted">Ingrediente {idx + 1}</span>
+              <button type="button" className="icon-btn danger" onClick={() => removeIngredient(idx)} disabled={ingredients.length <= 1}>✕</button>
+            </div>
             <input
               className="input"
               placeholder="Nombre del ingrediente"
@@ -595,14 +703,14 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
                       const nextUnit = allowedUnits.includes(it.unit) ? it.unit : (allowedUnits[0] || 'GRAM');
                       updateIngredient(idx, {
                         ingredientId: opt.id,
-                        query: opt.name,
+                        query: ingredientLabel(opt),
                         unit: nextUnit,
                         allowedUnits,
                         options: []
                       });
                     }}
                   >
-                    {opt.name}
+                    {ingredientLabel(opt)}
                   </button>
                 ))}
               </div>
@@ -617,6 +725,22 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
                 {creatingCustomIdx === idx ? 'Creando...' : `Crear "${it.query.trim()}" como custom`}
               </button>
             )}
+            {!it.ingredientId && (
+              <div className="row">
+                <select
+                  className="input"
+                  value={it.customMeasurementType || measurementTypeFromUnit(it.unit)}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    const nextUnits = unitsForMeasurementType(nextType);
+                    const nextUnit = nextUnits.includes(it.unit) ? it.unit : nextUnits[0];
+                    updateIngredient(idx, { customMeasurementType: nextType, unit: nextUnit });
+                  }}
+                >
+                  {MEASUREMENT_TYPES.map((t) => <option key={t} value={t}>{MEASUREMENT_TYPE_LABELS_ES[t]}</option>)}
+                </select>
+              </div>
+            )}
             <div className="row">
               <input
                 className="input"
@@ -628,13 +752,35 @@ function RecipeFormModal({ initial, onClose, onSaved, setBusy, notifyError }) {
                 onChange={(e) => updateIngredient(idx, { quantity: e.target.value })}
                 required
               />
-              <select className="input" value={it.unit} onChange={(e) => updateIngredient(idx, { unit: e.target.value })}>
-                {(Array.isArray(it.allowedUnits) && it.allowedUnits.length > 0 ? it.allowedUnits : UNITS).map((u) => <option key={u} value={u}>{u}</option>)}
+              <select
+                className="input"
+                value={it.unit}
+                onChange={(e) => {
+                  const nextUnit = e.target.value;
+                  updateIngredient(
+                    idx,
+                    it.ingredientId
+                      ? { unit: nextUnit }
+                      : { unit: nextUnit, customMeasurementType: measurementTypeFromUnit(nextUnit) }
+                  );
+                }}
+              >
+                {(Array.isArray(it.allowedUnits) && it.allowedUnits.length > 0
+                  ? it.allowedUnits
+                  : unitsForMeasurementType(it.customMeasurementType || measurementTypeFromUnit(it.unit))).map((u) => (
+                  <option key={u} value={u}>{unitLabel(u)}</option>
+                ))}
               </select>
             </div>
           </div>
         ))}
-        <button type="button" className="btn" onClick={() => setIngredients((prev) => [...prev, { ingredientId: '', quantity: '', unit: 'GRAM', query: '', options: [], allowedUnits: null }])}>+ Agregar ingrediente</button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setIngredients((prev) => [...prev, { ingredientId: '', quantity: '', unit: 'PIECE', query: '', options: [], allowedUnits: null, customMeasurementType: 'UNIT' }])}
+        >
+          + Agregar ingrediente
+        </button>
         {formError && <p className="auth-error">{formError}</p>}
 
         <label>Instrucciones</label>
@@ -767,6 +913,12 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
     }
   };
 
+  const goToToday = () => {
+    const today = isoDate(new Date());
+    setStartDate(isoDate(startOfWeekMonday()));
+    setSelectedDay(today);
+  };
+
   return (
     <section>
       <header className="top-header">
@@ -781,7 +933,7 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
           <strong>{toPrettyDate(startDate)} - {toPrettyDate(days[days.length - 1])}</strong>
           <button className="btn" onClick={() => setStartDate(isoDate(addDays(new Date(`${startDate}T00:00:00`), dayCount)))}>→</button>
         </div>
-        <button className="link-btn" onClick={() => setStartDate(isoDate(startOfWeekMonday()))}>Ir a hoy</button>
+        <button className="link-btn" onClick={goToToday}>Ir a hoy</button>
         {plannerNotice && <p className="notice-text">{plannerNotice}</p>}
         {plannerInlineError && <p className="field-error">{plannerInlineError}</p>}
       </header>
@@ -877,16 +1029,35 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [recipesById, setRecipesById] = useState({});
   const [draggingId, setDraggingId] = useState('');
 
+  const localizeDraft = (nextDraft, labelByIngredientId) => {
+    if (!nextDraft?.items?.length) return nextDraft;
+    return {
+      ...nextDraft,
+      items: nextDraft.items.map((item) => {
+        if (item.manual || !item.ingredientId) {
+          return { ...item, name: toDisplayCase(item.name) };
+        }
+        const preferred = labelByIngredientId[item.ingredientId];
+        if (!preferred) return item;
+        return { ...item, name: toDisplayCase(preferred) };
+      })
+    };
+  };
+
   const load = async () => {
     try {
       setBusy(true);
-      const [allPlans, allDrafts, allRecipes] = await Promise.all([
+      const [allPlans, allDrafts, allRecipes, allIngredients] = await Promise.all([
         api.listPlans(),
         api.listShoppingLists(),
-        api.listRecipes()
+        api.listRecipes(),
+        api.listIngredients()
       ]);
       const recipeIds = new Set((allRecipes || []).map((r) => r.id));
       setRecipesById(Object.fromEntries((allRecipes || []).map((r) => [r.id, r])));
+      const labelByIngredientId = Object.fromEntries(
+        (allIngredients || []).map((it) => [it.id, it.preferredLabel || it.name])
+      );
       const nextValidPlanIds = new Set(
         (allPlans || [])
           .filter((p) => (p.slots || []).every((s) => recipeIds.has(s.recipeId)))
@@ -900,7 +1071,7 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
       const firstValidPlanId = (allPlans || []).find((p) => nextValidPlanIds.has(p.id))?.id || '';
       const nextSelectedPlanId = latestValidDraft?.planId || firstValidPlanId || '';
 
-      setDraft(latestValidDraft);
+      setDraft(localizeDraft(latestValidDraft, labelByIngredientId));
       setSelectedPlanId(nextSelectedPlanId);
       setShoppingNotice(
         nextValidPlanIds.size < (allPlans || []).length
@@ -930,8 +1101,14 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
 
     try {
       setBusy(true);
-      const created = await api.generateShoppingList(selectedPlanId, `gen-${Date.now()}`);
-      setDraft(created);
+      const [created, allIngredients] = await Promise.all([
+        api.generateShoppingList(selectedPlanId, `gen-${Date.now()}`),
+        api.listIngredients()
+      ]);
+      const labelByIngredientId = Object.fromEntries(
+        (allIngredients || []).map((it) => [it.id, it.preferredLabel || it.name])
+      );
+      setDraft(localizeDraft(created, labelByIngredientId));
       notifySuccess('Lista generada');
     } catch (err) {
       notifyError(err, 'shopping');
@@ -963,8 +1140,14 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
           slots: cleanedSlots
         });
       }
-      const created = await api.generateShoppingList(plan.id, `clean-gen-${Date.now()}`);
-      setDraft(created);
+      const [created, allIngredients] = await Promise.all([
+        api.generateShoppingList(plan.id, `clean-gen-${Date.now()}`),
+        api.listIngredients()
+      ]);
+      const labelByIngredientId = Object.fromEntries(
+        (allIngredients || []).map((it) => [it.id, it.preferredLabel || it.name])
+      );
+      setDraft(localizeDraft(created, labelByIngredientId));
       notifySuccess(
         removed > 0
           ? `Plan limpiado (${removed} slot${removed > 1 ? 's' : ''}) y lista regenerada`
@@ -979,11 +1162,14 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
   };
 
   const updateItem = (id, patch) => {
+    const normalizedPatch = patch && Object.prototype.hasOwnProperty.call(patch, 'name')
+      ? { ...patch, name: toDisplayCase(patch.name) }
+      : patch;
     setDraft((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        items: prev.items.map((it) => (it.id === id ? { ...it, ...patch } : it))
+        items: prev.items.map((it) => (it.id === id ? { ...it, ...normalizedPatch } : it))
       };
     });
   };
@@ -1050,7 +1236,7 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
           {
             id: `tmp-${Date.now()}-${nextIndex}`,
             ingredientId: null,
-            name: 'Nuevo item',
+            name: 'Nuevo Item',
             quantity: 1,
             unit: 'PIECE',
             suggestedPackages: null,
@@ -1191,7 +1377,7 @@ function ShoppingItem({ item, onChange, onDelete, onMove, onDragStart, onDropOn 
       <div className="row gap-sm">
         <input className="input" type="number" min="0.01" step="0.01" value={item.quantity} onChange={(e) => onChange(item.id, { quantity: e.target.value })} />
         <select className="input" value={item.unit} onChange={(e) => onChange(item.id, { unit: e.target.value })}>
-          {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+          {UNITS.map((u) => <option key={u} value={u}>{unitLabel(u)}</option>)}
         </select>
       </div>
       <input className="input" placeholder="Nota" value={item.note || ''} onChange={(e) => onChange(item.id, { note: e.target.value })} />
