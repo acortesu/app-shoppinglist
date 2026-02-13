@@ -214,6 +214,63 @@ resource "aws_security_group" "rds" {
 # - ECR repo
 # - ECS cluster + task definition + service (Fargate)
 # - ALB + target group + listener
+############################
+# ALB
+############################
+
+resource "aws_lb" "this" {
+  name               = "${local.name_prefix}-alb"
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = aws_subnet.public[*].id
+
+  enable_deletion_protection = false
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-alb"
+  })
+}
+
+############################
+# Target Group
+############################
+
+resource "aws_lb_target_group" "this" {
+  name     = "${local.name_prefix}-tg"
+  port     = var.container_port
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.this.id
+
+  target_type = "ip"
+
+  health_check {
+    path                = var.healthcheck_path
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    matcher             = "200"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-tg"
+  })
+}
+
+############################
+# Listener HTTP
+############################
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.this.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.this.arn
+  }
+}
 # - RDS Postgres (o restore desde snapshot)
 # - (Más adelante) ACM cert + ALB listener 443 para api.acortesdev.xyz
 #
