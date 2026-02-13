@@ -1,148 +1,264 @@
-# Week Meal Prep + Shopping List
+# appCompras - Week Meal Prep + Shopping List
 
-Proyecto portfolio DevOps con foco en un MVP usable para planificación de comidas y generación de lista de compras inteligente.
+MVP mobile-first para planificar comidas y generar lista de compras editable.
 
-## Objetivo MVP
+Objetivo principal: mantener una UX simple para el usuario final y un backend consistente para evitar duplicados, errores de unidades y problemas de ownership por usuario.
 
-- CRUD de recetas.
-- Planificación semanal o quincenal (breakfast/lunch/dinner)
-- Generación automática de shopping list (suma + normalización + conversión)
-- Shopping list editable por el usuario.
+## Estado actual del proyecto
 
-## Criterios de diseño
+Backend y frontend están integrados en `master` con:
 
-- Simplicidad > complejidad
-- Backend con lógica de dominio fuerte y testeable
-- Frontend guiado para que el usuario no piense en conversiones
-- Infra declarativa con Terraform en AWS
-- Sin microservicios, sin Kubernetes, sin serverless forzado
+- Persistencia PostgreSQL para recetas, planes y drafts de compras.
+- Migraciones Flyway hasta `V7`.
+- Auth JWT Google opcional por entorno (`APP_SECURITY_REQUIRE_AUTH=true|false`).
+- Aislamiento por usuario (`user_id`) para datos principales.
+- Generación de shopping list con idempotencia (`Idempotency-Key`).
+- API versionada (`X-API-Version: 1` o `v1`).
+- UI React mobile-first (recetas, planificador y compras).
+- CI backend con tests unitarios/aplicación + integración Postgres (Testcontainers).
 
-## Estructura del repositorio
+## Stack técnico
 
-- `frontend/`: React + Vite (build estático para S3 + CloudFront)
-- `backend/`: Java 17 + Spring Boot REST API (stateless, dockerizable)
-- `infra/`: Terraform para entornos `dev` y `prod`
-- `docs/`: alcance funcional, modelo de dominio y plan de implementación
+- Backend: Java 17, Spring Boot 3.3, Spring Security Resource Server, Spring Data JPA, Flyway, OpenAPI (springdoc), Actuator, Micrometer Prometheus.
+- DB: PostgreSQL 16.
+- Frontend: React 18 + Vite 5.
+- Contenedores: Docker / Docker Compose.
+- CI: GitHub Actions.
+- IaC (pendiente de implementación completa): Terraform en `infra/`.
 
-## Entorno local (docker-compose)
+## Estructura del repo
 
-1. Levantar Docker Desktop.
-2. Copiar variables:
-   - `cp .env.example .env`
-   - completar `GOOGLE_CLIENT_ID` con tu Client ID de Google
-3. Desde la raíz del repo (`/Users/alo/Documents/Code/appCompras/appCompras`):
-   - Solo DB: `./scripts/dev-up.sh`
-   - DB + backend dockerizado: `./scripts/dev-up.sh app`
-4. Verificar salud:
-   - `docker compose ps`
-5. Para apagar:
-   - `./scripts/dev-down.sh`
-6. Smoke E2E backend (flujo completo):
-   - `./scripts/smoke-backend-e2e.sh`
+- `backend/`: API REST, dominio, seguridad, persistencia y migraciones.
+- `frontend/`: SPA React/Vite mobile-first.
+- `scripts/`: utilidades locales (`dev-up`, `dev-down`, smoke E2E).
+- `docs/`: decisiones y handoff funcional/técnico del MVP.
+- `infra/`: guía base para Terraform (pendiente bootstrap de módulos).
 
-Credenciales por defecto del compose:
-- DB: `appcompras`
-- User: `appcompras_user`
-- Password: `appcompras_pass`
-- Puerto: `5432`
+## Arquitectura
 
-Si corrés backend en local (no docker), usa los defaults de `backend/src/main/resources/application.yml` y conecta a esa misma DB.
-El archivo `.env` debe quedar en: `/Users/alo/Documents/Code/appCompras/appCompras/.env`.
+### Backend
 
-## Seguridad (Google JWT)
+Paquetes principales (`backend/src/main/java/com/appcompras`):
 
-- Endpoints `/api/**` requieren JWT cuando `APP_SECURITY_REQUIRE_AUTH=true`.
-- Header esperado: `Authorization: Bearer <google_id_token>`.
-- `GOOGLE_CLIENT_ID` debe coincidir con la audiencia (`aud`) del token.
-- Para desarrollo local sin login:
-  - `APP_SECURITY_REQUIRE_AUTH=false`
-- Endpoints públicos aunque auth esté activo:
-  - `/swagger-ui.html`
-  - `/v3/api-docs`
-  - `/actuator/health`
-  - `/actuator/info`
+- `recipe`: CRUD de recetas.
+- `planning`: CRUD de meal plans (`WEEK`/`FORTNIGHT`, slots `BREAKFAST/LUNCH/DINNER`).
+- `shopping`: generación, lectura y edición de drafts.
+- `ingredient`: catálogo + custom ingredients.
+- `service`: lógica de dominio (catálogo, conversiones, agregación de compras).
+- `security`: validación JWT Google y políticas de acceso.
+- `config`: OpenAPI, manejo de errores, API versioning, filtros de request logging.
+- `domain`: modelos de negocio.
 
-## Versionado de API
+Principios aplicados:
 
-- Versión actual: `v1`.
-- Header opcional: `X-API-Version`.
-- Valores aceptados:
-  - `1`
-  - `v1`
-- Sin header también funciona para mantener compatibilidad.
-- Cualquier otro valor devuelve `400` con código `UNSUPPORTED_API_VERSION`.
+- Backend stateless.
+- Contrato de error consistente (`ApiError` con `code`).
+- IDs canónicos para ingredientes (ej. `rice`) para evitar duplicados.
+- Labels amigables para UI (`preferredLabel`, aliases) sin romper canonical IDs.
 
-## Test de integración Postgres
+### Frontend
 
-- Test E2E con Postgres real (Testcontainers):
-  - `cd backend && gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
-- Requiere Docker disponible para el proceso de tests.
+Archivos principales (`frontend/src`):
 
-## Tests de seguridad y ownership
+- `App.jsx`: composición de tabs y flujos principales.
+- `api.js`: cliente API, headers comunes, token auth y cache simple en memoria.
+- `styles.css`: tema mobile-first.
 
-- Correr todas las pruebas backend:
-  - `cd backend && gradle --no-daemon test`
-- Incluye:
-  - `ApiSecurityAuthTest`: valida `401` sin token y acceso con JWT.
-  - `OwnershipIsolationTest`: valida aislamiento de datos por `sub` (usuario autenticado).
+Pantallas MVP:
 
-## Shopping list UX + idempotency
+- Recetas: list/search/create/update/delete.
+- Planificador: vista semanal/quincenal, selección por slot, guardar plan.
+- Compras: generar draft, editar items, marcar comprados, reordenar, guardar.
+- AuthGate: Google Sign-In cuando auth está activo.
 
-- `POST /api/shopping-lists/generate` acepta header opcional `Idempotency-Key`.
-- `PUT /api/shopping-lists/{id}` ahora acepta por item:
-  - `bought` (boolean)
-  - `note` (string)
-  - `sortOrder` (integer)
+### Datos y reglas importantes
 
-## Versionado del catálogo seed
+- El usuario puede escribir ingredientes en español; backend resuelve aliases y guarda `ingredientId` canónico.
+- La UI muestra `preferredLabel` (amigable) en sugerencias y shopping list.
+- Nombres visibles se normalizan a formato `Display Case` (ej. `SALSA`, `sALsa` -> `Salsa`).
 
-- Archivo fuente: `/Users/alo/Documents/Code/appCompras/appCompras/backend/src/main/resources/seed/ingredients-catalog-cr.json`.
-- El seed incluye `catalogVersion` (entero >= 1) y el backend valida su presencia al arrancar.
-- Regla de compatibilidad recomendada:
-  - no eliminar aliases existentes si ya se usaron en recetas reales.
-  - si cambia naming, agregar alias nuevo y mantener alias legacy.
-  - subir `catalogVersion` cuando se haga un cambio relevante en catálogo.
-- Cobertura de regresión:
-  - `IngredientSeedVersionTest` valida metadatos mínimos del seed.
-  - `IngredientControllerTest` valida aliases legacy (`frijoles negros`, `pechuga de pollo`, `arroz integral`).
+## Contrato API (resumen)
 
-## Observabilidad
+Header recomendado:
 
-- Swagger UI: `/swagger-ui.html`
-- OpenAPI JSON: `/v3/api-docs`
-- Health: `/actuator/health`
-- Métricas Prometheus: `/actuator/prometheus`
-- Logs: incluyen `requestId`, método, path, status y latencia (`durationMs`).
+- `X-API-Version: 1`
 
-## Troubleshooting rápido
+Auth (si aplica):
 
-- `401 UNAUTHORIZED` en `/api/**`:
-  - falta token o `APP_SECURITY_REQUIRE_AUTH=true` sin login.
-- `invalid_token` / audience inválida:
-  - revisar `GOOGLE_CLIENT_ID` y que coincida con el token real.
-- Error de conexión a DB:
-  - validar `docker compose ps`, credenciales del `.env`, y `DB_URL`.
-- Error Flyway al arrancar:
-  - revisar tabla `flyway_schema_history` y que no haya migraciones editadas luego de aplicarse.
+- `Authorization: Bearer <google_id_token>`
+
+Grupos de endpoints:
+
+- `GET/POST/PUT/DELETE /api/recipes`
+- `GET/POST/PUT/DELETE /api/plans`
+- `POST /api/shopping-lists/generate?planId=...`
+- `GET /api/shopping-lists`
+- `GET /api/shopping-lists/{id}`
+- `PUT /api/shopping-lists/{id}`
+- `DELETE /api/shopping-lists/{id}`
+- `GET /api/ingredients`
+- `POST /api/ingredients/custom`
+
+Documentación runtime:
+
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+## Desarrollo local
+
+### Requisitos
+
+- Docker / Docker Compose
+- Node.js + npm
+- Java 17 + Gradle
+- `curl` y `jq` (para script smoke)
+
+### Variables de entorno
+
+1. Copiar archivo base:
+
+```bash
+cp .env.example .env
+```
+
+2. Configurar al menos:
+
+- `APP_SECURITY_REQUIRE_AUTH` (`true` o `false`)
+- `GOOGLE_CLIENT_ID` (si auth=true)
+
+Opcional frontend (`frontend/.env`):
+
+- `VITE_REQUIRE_AUTH=true|false`
+- `VITE_GOOGLE_CLIENT_ID=<google-web-client-id>`
+- `VITE_API_BASE_URL` (si no usas proxy de Vite)
+
+### Levantar servicios
+
+Desde la raíz del repo:
+
+```bash
+cd /Users/alo/Documents/Code/appCompras/appCompras
+```
+
+Solo Postgres:
+
+```bash
+./scripts/dev-up.sh
+```
+
+Postgres + backend dockerizado:
+
+```bash
+./scripts/dev-up.sh app
+```
+
+Apagar:
+
+```bash
+./scripts/dev-down.sh
+```
+
+Rebuild backend (cuando cambias código backend):
+
+```bash
+docker compose --profile app up -d --build backend
+```
+
+### Frontend
+
+```bash
+cd /Users/alo/Documents/Code/appCompras/appCompras/frontend
+npm install
+npm run dev
+```
+
+- App: `http://localhost:5173`
+- Vite proxy apunta a `http://localhost:8080` para `/api`, `/actuator`, `/v3/api-docs`, `/swagger-ui`.
+
+## Testing y calidad
+
+Backend completo:
+
+```bash
+cd /Users/alo/Documents/Code/appCompras/appCompras/backend
+gradle --no-daemon test
+```
+
+Integración Postgres (Testcontainers):
+
+```bash
+cd /Users/alo/Documents/Code/appCompras/appCompras/backend
+gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest
+```
+
+Smoke E2E local (flujo funcional backend):
+
+```bash
+cd /Users/alo/Documents/Code/appCompras/appCompras
+./scripts/smoke-backend-e2e.sh
+```
+
+Frontend:
+
+```bash
+cd /Users/alo/Documents/Code/appCompras/appCompras/frontend
+npm run build
+npm run test
+```
+
+## Docker
+
+`docker-compose.yml` define:
+
+- `postgres` (siempre): `postgres:16-alpine`, puerto `5432`.
+- `backend` (profile `app`): build desde `backend/Dockerfile`, puerto `8080`.
+
+Backend container variables clave:
+
+- `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
+- `APP_SECURITY_REQUIRE_AUTH`
+- `GOOGLE_CLIENT_ID`
 
 ## CI
 
-- Pipeline backend con tests en `.github/workflows/backend-ci.yml`.
-- Corre en push/PR contra `master` con dos jobs separados:
-  - `backend-unit`: tests de aplicación/unidad.
-  - `backend-integration-postgres`: flujo E2E con Testcontainers + PostgreSQL.
-- Recomendado en GitHub branch protection:
-  - marcar ambos checks (`backend-unit`, `backend-integration-postgres`) como requeridos para merge.
-  - regla en GitHub: `Settings > Branches > Branch protection rules > master`.
+Workflow: `.github/workflows/backend-ci.yml`
 
-## Definition Of Done (backend MVP)
+Jobs:
 
-- Checklist completo: `/Users/alo/Documents/Code/appCompras/appCompras/docs/backend-mvp-dod.md`.
+- `backend-unit`: tests unitarios/aplicación por paquetes.
+- `backend-integration-postgres`: `PostgresE2EFlowTest` con Testcontainers.
 
-## Próximos hitos
+## Handoff para DevOps (siguiente fase)
 
-1. Definir modelo de dominio backend y reglas de conversión.
-2. Implementar API de recetas y planificación.
-3. Implementar generación/edición de shopping list.
-4. Montar frontend MVP.
-5. Completar IaC y pipeline CI/CD.
+Estado actual infra:
+
+- `infra/` está en fase base (README), sin módulos Terraform implementados aún.
+
+Siguientes pasos recomendados:
+
+1. Definir módulos Terraform por entorno (`dev`/`prod`): VPC, RDS, ECS Fargate, ALB, ECR, S3, CloudFront, IAM.
+2. Pipeline CI/CD: build imagen backend, push a ECR, deploy a ECS (rolling).
+3. Secrets/variables en entorno gestionado (no en `.env` local).
+4. Observabilidad en cloud: métricas, logs estructurados, alertas.
+5. Estrategia de branch protection y release tagging.
+
+## Handoff para otro agente AI
+
+Si vas a continuar con otro agente, comparte esto como contexto mínimo:
+
+- Repo: `/Users/alo/Documents/Code/appCompras/appCompras`
+- Rama actual: `master`
+- Backend: Spring Boot + Postgres + Flyway + JWT Google opcional.
+- Frontend: React/Vite mobile-first en un solo `App.jsx` + `api.js`.
+- Convención ingredientes:
+  - Backend guarda `ingredientId` canónico.
+  - UI muestra `preferredLabel` y aliases amigables.
+- Comandos clave:
+  - `./scripts/dev-up.sh app`
+  - `docker compose --profile app up -d --build backend`
+  - `cd frontend && npm run dev`
+  - `cd backend && gradle --no-daemon test`
+- Documentos clave:
+  - `docs/frontend-handoff-mvp-mobile-first.md`
+  - `docs/backend-mvp-dod.md`
+
