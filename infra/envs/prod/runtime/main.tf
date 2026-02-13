@@ -212,6 +212,42 @@ resource "aws_security_group" "rds" {
   })
 }
 # - ECR repo
+############################
+# ECR
+############################
+
+resource "aws_ecr_repository" "backend" {
+  name                 = "${var.project}-backend-${var.env}"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-ecr-backend"
+  })
+}
+
+# Policy para limpiar imágenes viejas (te ahorra storage)
+resource "aws_ecr_lifecycle_policy" "backend" {
+  repository = aws_ecr_repository.backend.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 20 images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 20
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
+}
 # - ECS cluster + task definition + service (Fargate)
 # - ALB + target group + listener
 ############################
