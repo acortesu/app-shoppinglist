@@ -459,6 +459,79 @@ resource "aws_lb_listener" "http" {
   }
 }
 # - RDS Postgres (o restore desde snapshot)
+
+############################
+# Secrets Manager - DB credentials
+############################
+
+resource "random_password" "db" {
+  length  = var.db_password_length
+  special = true
+}
+
+resource "aws_secretsmanager_secret" "db" {
+  name = "${local.name_prefix}/db/credentials"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-db-secret"
+  })
+}
+
+resource "aws_secretsmanager_secret_version" "db" {
+  secret_id = aws_secretsmanager_secret.db.id
+
+  secret_string = jsonencode({
+    username = var.db_username
+    password = random_password.db.result
+    dbname   = var.db_name
+  })
+}
+
+############################
+# RDS Subnet Group
+############################
+
+resource "aws_db_subnet_group" "this" {
+  name       = "${local.name_prefix}-db-subnets"
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-db-subnets"
+  })
+}
+
+############################
+# RDS - Fresh create
+############################
+
+resource "aws_db_instance" "this" {
+  identifier = "${local.name_prefix}-postgres"
+
+  engine               = "postgres"
+  engine_version       = "16"
+  instance_class       = var.db_instance_class
+  allocated_storage    = var.db_allocated_storage_gb
+  storage_encrypted    = true
+
+  db_name  = var.db_name
+  username = var.db_username
+  password = random_password.db.result
+
+  db_subnet_group_name   = aws_db_subnet_group.this.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
+
+  publicly_accessible = false
+  multi_az            = false
+
+  backup_retention_period = 1
+  skip_final_snapshot     = true
+
+  deletion_protection = false
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-postgres"
+  })
+}
 # - (Más adelante) ACM cert + ALB listener 443 para api.acortesdev.xyz
 #
 # En Fase 0 solo dejamos el skeleton para que el repo ya tenga el “layout final”.

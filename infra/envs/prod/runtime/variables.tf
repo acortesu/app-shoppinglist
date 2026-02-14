@@ -69,3 +69,8 @@ variable "backend_image_tag" {
   type    = string
   default = "latest"
 }
+
+variable "db_password_length" {
+  type    = number
+  default = 24
+}
