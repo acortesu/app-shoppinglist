@@ -348,6 +348,32 @@ resource "aws_iam_role" "ecs_task" {
 }
 
 ############################
+# IAM Policy - Allow ECS to read DB Secret
+############################
+
+data "aws_iam_policy_document" "ecs_read_db_secret" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [
+      aws_secretsmanager_secret.db.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "ecs_read_db_secret" {
+  name   = "${local.name_prefix}-ecs-read-db-secret"
+  policy = data.aws_iam_policy_document.ecs_read_db_secret.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_read_db_secret" {
+  role       = aws_iam_role.ecs_task.name
+  policy_arn = aws_iam_policy.ecs_read_db_secret.arn
+}
+
+############################
 # ECS Cluster
 ############################
 
@@ -392,8 +418,19 @@ resource "aws_ecs_task_definition" "backend" {
       ]
 
       environment = [
-        { name = "APP_SECURITY_REQUIRE_AUTH", value = tostring(var.app_security_require_auth) }
-        # DB_* lo agregamos en la fase de RDS
+        { name = "APP_SECURITY_REQUIRE_AUTH", value = tostring(var.app_security_require_auth) },
+        { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.this.address}:5432/${var.db_name}" }
+      ]
+
+      secrets = [
+        {
+          name      = "SPRING_DATASOURCE_USERNAME"
+          valueFrom = "${aws_secretsmanager_secret.db.arn}:username::"
+        },
+        {
+          name      = "SPRING_DATASOURCE_PASSWORD"
+          valueFrom = "${aws_secretsmanager_secret.db.arn}:password::"
+        }
       ]
 
       logConfiguration = {
@@ -507,11 +544,11 @@ resource "aws_db_subnet_group" "this" {
 resource "aws_db_instance" "this" {
   identifier = "${local.name_prefix}-postgres"
 
-  engine               = "postgres"
-  engine_version       = "16"
-  instance_class       = var.db_instance_class
-  allocated_storage    = var.db_allocated_storage_gb
-  storage_encrypted    = true
+  engine            = "postgres"
+  engine_version    = "16"
+  instance_class    = var.db_instance_class
+  allocated_storage = var.db_allocated_storage_gb
+  storage_encrypted = true
 
   db_name  = var.db_name
   username = var.db_username

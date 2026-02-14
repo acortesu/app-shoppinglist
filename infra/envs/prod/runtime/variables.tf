@@ -1,7 +1,7 @@
 variable "aws_region" { type = string }
 
 variable "project" { type = string }
-variable "env"     { type = string }
+variable "env" { type = string }
 
 variable "tags" {
   type    = map(string)
@@ -21,9 +21,9 @@ variable "private_subnet_cidrs" {
 
 # Backend (ECS)
 variable "container_port" { type = number }
-variable "desired_count"  { type = number }
-variable "cpu"            { type = number } # 256, 512, 1024...
-variable "memory"         { type = number } # 512, 1024, 2048...
+variable "desired_count" { type = number }
+variable "cpu" { type = number }    # 256, 512, 1024...
+variable "memory" { type = number } # 512, 1024, 2048...
 variable "healthcheck_path" { type = string }
 
 # App config / auth
