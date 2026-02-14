@@ -6,7 +6,6 @@ locals {
   })
 }
 
-# Fase 1 (runtime) va a incluir aquí:
 # - VPC + subnets + IGW + route tables (SIN NAT)
 ############################
 # Data
@@ -290,6 +289,158 @@ resource "aws_lb_target_group" "this" {
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-tg"
+  })
+}
+
+############################
+# CloudWatch Logs
+############################
+
+resource "aws_cloudwatch_log_group" "backend" {
+  name              = "/ecs/${local.name_prefix}-backend"
+  retention_in_days = 7
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-backend-logs"
+  })
+}
+
+############################
+# IAM - ECS Task Execution Role
+############################
+
+data "aws_iam_policy_document" "ecs_task_execution_assume_role" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_iam_role" "ecs_task_execution" {
+  name               = "${local.name_prefix}-ecs-task-execution-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_execution_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-ecs-task-execution-role"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
+  role       = aws_iam_role.ecs_task_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+############################
+# IAM - ECS Task Role (tu app)
+############################
+
+resource "aws_iam_role" "ecs_task" {
+  name               = "${local.name_prefix}-ecs-task-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_task_execution_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-ecs-task-role"
+  })
+}
+
+############################
+# ECS Cluster
+############################
+
+resource "aws_ecs_cluster" "this" {
+  name = "${local.name_prefix}-cluster"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-cluster"
+  })
+}
+
+############################
+# ECS Task Definition
+############################
+
+locals {
+  backend_image = "${aws_ecr_repository.backend.repository_url}:${var.backend_image_tag}"
+}
+
+resource "aws_ecs_task_definition" "backend" {
+  family                   = "${local.name_prefix}-backend"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+
+  cpu    = tostring(var.cpu)
+  memory = tostring(var.memory)
+
+  execution_role_arn = aws_iam_role.ecs_task_execution.arn
+  task_role_arn      = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "backend"
+      image     = local.backend_image
+      essential = true
+
+      portMappings = [
+        {
+          containerPort = var.container_port
+          protocol      = "tcp"
+        }
+      ]
+
+      environment = [
+        { name = "APP_SECURITY_REQUIRE_AUTH", value = tostring(var.app_security_require_auth) }
+        # DB_* lo agregamos en la fase de RDS
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.backend.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "backend"
+        }
+      }
+    }
+  ])
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-taskdef-backend"
+  })
+}
+
+############################
+# ECS Service
+############################
+
+resource "aws_ecs_service" "backend" {
+  name            = "${local.name_prefix}-backend-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.backend.arn
+  desired_count   = var.desired_count
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.public[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.this.arn
+    container_name   = "backend"
+    container_port   = var.container_port
+  }
+
+  depends_on = [
+    aws_lb_listener.http
+  ]
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-backend-svc"
   })
 }
 

@@ -64,3 +64,8 @@ variable "snapshot_identifier" {
   type    = string
   default = ""
 }
+
+variable "backend_image_tag" {
+  type    = string
+  default = "latest"
+}
