@@ -116,6 +116,7 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
 }
+
 # - Security Groups (ALB, ECS, RDS)
 ############################
 # Security Groups
@@ -210,6 +211,7 @@ resource "aws_security_group" "rds" {
     Name = "${local.name_prefix}-rds-sg"
   })
 }
+
 # - ECR repo
 ############################
 # ECR
@@ -247,6 +249,7 @@ resource "aws_ecr_lifecycle_policy" "backend" {
     ]
   })
 }
+
 # - ECS cluster + task definition + service (Fargate)
 # - ALB + target group + listener
 ############################
@@ -495,8 +498,8 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.this.arn
   }
 }
-# - RDS Postgres (o restore desde snapshot)
 
+# - RDS Postgres (o restore desde snapshot)
 ############################
 # Secrets Manager - DB credentials
 ############################
@@ -569,6 +572,3 @@ resource "aws_db_instance" "this" {
     Name = "${local.name_prefix}-postgres"
   })
 }
-# - (Más adelante) ACM cert + ALB listener 443 para api.acortesdev.xyz
-#
-# En Fase 0 solo dejamos el skeleton para que el repo ya tenga el “layout final”.
