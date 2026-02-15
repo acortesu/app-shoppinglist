@@ -18,6 +18,8 @@ cpu               = 256
 memory            = 512
 healthcheck_path  = "/actuator/health"
 
+api_domain = "api.acortesdev.xyz"
+
 app_security_require_auth = false
 google_client_id          = ""
 cors_allowed_origins      = ["https://www.acortesdev.xyz"]

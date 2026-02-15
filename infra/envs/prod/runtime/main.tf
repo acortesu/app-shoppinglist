@@ -499,13 +499,57 @@ resource "aws_ecs_service" "backend" {
 }
 
 ############################
-# Listener HTTP
+# ACM Certificate (DNS validation via GoDaddy)
+############################
+
+resource "aws_acm_certificate" "api" {
+  domain_name       = var.api_domain
+  validation_method = "DNS"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-api-cert"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+############################
+# Listener HTTP (redirect to HTTPS)
 ############################
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type             = var.enable_https ? "redirect" : "forward"
+    target_group_arn = var.enable_https ? null : aws_lb_target_group.this.arn
+
+    dynamic "redirect" {
+      for_each = var.enable_https ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+}
+
+############################
+# Listener HTTPS (forward to target group)
+############################
+
+resource "aws_lb_listener" "https" {
+  count             = var.enable_https ? 1 : 0
+  load_balancer_arn = aws_lb.this.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.api.arn
 
   default_action {
     type             = "forward"
@@ -586,3 +630,24 @@ resource "aws_db_instance" "this" {
     Name = "${local.name_prefix}-postgres"
   })
 }
+
+output "api_domain" {
+  value = var.api_domain
+}
+
+output "acm_certificate_arn" {
+  value = aws_acm_certificate.api.arn
+}
+
+output "acm_dns_validation_records" {
+  description = "Create these CNAME records in GoDaddy to validate the ACM certificate"
+  value = [
+    for dvo in aws_acm_certificate.api.domain_validation_options : {
+      domain_name           = dvo.domain_name
+      resource_record_name  = dvo.resource_record_name
+      resource_record_type  = dvo.resource_record_type
+      resource_record_value = dvo.resource_record_value
+    }
+  ]
+}
+

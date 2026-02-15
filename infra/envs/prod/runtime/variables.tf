@@ -74,3 +74,14 @@ variable "db_password_length" {
   type    = number
   default = 24
 }
+
+variable "api_domain" {
+  type        = string
+  description = "Public API domain (GoDaddy DNS), e.g. api.acortesdev.xyz"
+}
+
+variable "enable_https" {
+  type        = bool
+  description = "When true, creates the HTTPS (443) listener and redirects HTTP (80) to HTTPS. Use false until ACM cert is ISSUED."
+  default     = false
+}
