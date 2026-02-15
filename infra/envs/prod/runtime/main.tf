@@ -350,6 +350,12 @@ resource "aws_iam_role" "ecs_task" {
   })
 }
 
+# Allow ECS Exec (SSM) inside the running container
+resource "aws_iam_role_policy_attachment" "ecs_task_ssm_core" {
+  role       = aws_iam_role.ecs_task.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 ############################
 # IAM Policy - Allow ECS to read DB Secret
 ############################
@@ -372,7 +378,7 @@ resource "aws_iam_policy" "ecs_read_db_secret" {
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_read_db_secret" {
-  role       = aws_iam_role.ecs_task.name
+  role       = aws_iam_role.ecs_task_execution.name
   policy_arn = aws_iam_policy.ecs_read_db_secret.arn
 }
 
@@ -404,8 +410,14 @@ resource "aws_ecs_task_definition" "backend" {
   cpu    = tostring(var.cpu)
   memory = tostring(var.memory)
 
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+
   execution_role_arn = aws_iam_role.ecs_task_execution.arn
   task_role_arn      = aws_iam_role.ecs_task.arn
+
 
   container_definitions = jsonencode([
     {
@@ -474,6 +486,8 @@ resource "aws_ecs_service" "backend" {
     container_name   = "backend"
     container_port   = var.container_port
   }
+
+  enable_execute_command = true
 
   depends_on = [
     aws_lb_listener.http
