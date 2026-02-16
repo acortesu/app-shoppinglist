@@ -15,3 +15,6 @@ backend/build/
 # Frontend build
 frontend/node_modules/
 frontend/dist/
+.env.development.local
+.env.production.local
+.env.local

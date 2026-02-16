@@ -1,0 +1,50 @@
+name: Frontend CI/CD (Shopping App)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (production)
+        working-directory: frontend
+        run: npm run build -- --mode production
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to S3 (shopping-app)
+        working-directory: frontend
+        run: |
+          aws s3 sync dist s3://${{ secrets.S3_BUCKET_PROD }}/shopping-app --delete
+
+      - name: Invalidate CloudFront cache (shopping-app)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DIST_PROD }} \
+            --paths "/shopping-app/*"
