@@ -24,6 +24,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+    
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Set TAG
         run: |
@@ -44,19 +50,15 @@ jobs:
           | docker login --username AWS --password-stdin \
           "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
-      - name: Build Docker image (ARM64)
+      - name: Build & Push image to ECR (ARM64)
         working-directory: backend
         run: |
-          docker build --platform linux/arm64 \
-            -t "$ECR_REPO:$TAG" .
-
-      - name: Tag & Push to ECR
-        run: |
-          docker tag "$ECR_REPO:$TAG" \
-            "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$TAG"
-
-          docker push \
-            "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$TAG"
+          IMAGE_URI="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$TAG"
+          docker buildx build \
+            --platform linux/arm64 \
+            -t "$IMAGE_URI" \
+            --push \
+            .
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -74,4 +76,3 @@ jobs:
       - name: Terraform Apply
         working-directory: infra/envs/prod/runtime
         run: terraform apply -auto-approve
-        
