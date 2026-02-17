@@ -400,8 +400,9 @@ function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
   };
 
   useEffect(() => {
+    if (!isActive) return;
     loadRecipes();
-  }, []);
+  }, [isActive]);
 
   const onDelete = async (id) => {
     try {
@@ -837,8 +838,9 @@ function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
   };
 
   useEffect(() => {
+    if (!isActive) return;
     load();
-  }, []);
+  }, [isActive]);
 
   useEffect(() => {
     const current = plans.find((p) => p.startDate === startDate && p.period === period);
@@ -1086,8 +1088,9 @@ function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) {
   };
 
   useEffect(() => {
+    if (!isActive) return;
     load();
-  }, []);
+  }, [isActive]);
 
   const regenerate = async () => {
     if (!selectedPlanId) {

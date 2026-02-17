@@ -42,6 +42,7 @@ public class CorsConfig {
         "Authorization",
         "Content-Type",
         "X-API-Version",
+        "Idempotency-Key",
         "X-Requested-With",
         "Accept",
         "Origin"
