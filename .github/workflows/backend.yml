@@ -63,16 +63,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Update Terraform backend_image_tag
-        working-directory: infra/envs/prod/runtime
-        run: |
-          sed -i "s/^backend_image_tag = \".*\"/backend_image_tag = \"$TAG\"/" terraform.tfvars
-          grep -n '^backend_image_tag' terraform.tfvars
-
       - name: Terraform Init
         working-directory: infra/envs/prod/runtime
         run: terraform init
 
       - name: Terraform Apply
         working-directory: infra/envs/prod/runtime
-        run: terraform apply -auto-approve
+        env:
+          TF_VAR_db_username: ${{ secrets.DB_USERNAME }}
+          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: terraform apply -auto-approve -var="backend_image_tag=${TAG}"
+        
