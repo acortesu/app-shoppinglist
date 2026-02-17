@@ -434,7 +434,10 @@ resource "aws_ecs_task_definition" "backend" {
 
       environment = [
         { name = "APP_SECURITY_REQUIRE_AUTH", value = tostring(var.app_security_require_auth) },
-        { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.this.address}:5432/${var.db_name}" }
+        { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
+        { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.this.address}:5432/${var.db_name}" },
+        { name = "APP_CORS_ALLOWED_ORIGINS", value = join(",", var.cors_allowed_origins) },
+        { name = "CORS_ALLOWED_ORIGINS", value = join(",", var.cors_allowed_origins) }
       ]
 
       secrets = [
@@ -474,6 +477,7 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
+  health_check_grace_period_seconds = 180
 
   network_configuration {
     subnets          = aws_subnet.public[*].id
@@ -650,4 +654,3 @@ output "acm_dns_validation_records" {
     }
   ]
 }
-

@@ -25,11 +25,3 @@ output "ecs_service_name" {
 output "task_definition_arn" {
   value = aws_ecs_task_definition.backend.arn
 }
-
-output "rds_endpoint" {
-  value = aws_db_instance.this.address
-}
-
-output "db_secret_arn" {
-  value = aws_secretsmanager_secret.db.arn
-}
