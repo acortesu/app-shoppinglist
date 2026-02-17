@@ -61,12 +61,12 @@ jobs:
       - name: Update Terraform backend_image_tag
         working-directory: infra/envs/prod/runtime
         run: |
-          sed -i "s/^backend_image_tag = \".*\"/backend_image_tag = \"$TAG\"/" terraform.tfvars
+          sed -i "s/^backend_image_tag = \".*\"/backend_image_tag = \"${TAG}\"/" terraform.tfvars
 
-                - name: Setup Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with: 
-        terraform_version: 1.6.6
+        with:
+          terraform_version: 1.6.6
 
       - name: Terraform Init
         working-directory: infra/envs/prod/runtime

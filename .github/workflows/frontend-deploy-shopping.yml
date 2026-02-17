@@ -1,12 +1,13 @@
-name: Frontend CI/CD (Shopping App)
+name: Backend CI/CD
 
 on:
   push:
     branches:
       - master
     paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-deploy-shopping.yml"
+      - "backend/**"
+      - "infra/**"
+      - ".github/workflows/backend.yml"
 
 permissions:
   contents: read
@@ -19,33 +20,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          node-version: 18
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
+      - name: Build and push backend image
+        run: |
+          TAG=${{ github.sha }}
+          docker build -t myapp/backend:$TAG backend/
+          docker push myapp/backend:$TAG
+        env:
+          DOCKER_BUILDKIT: 1
 
-      - name: Build frontend (production)
-        working-directory: frontend
-        run: npm run build -- --mode production
+      - name: Update Terraform backend_image_tag
+        working-directory: infra/envs/prod/runtime
+        run: |
+          sed -i "s/^backend_image_tag = \".*\"/backend_image_tag = \"$TAG\"/" terraform.tfvars
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          terraform_version: 1.6.6
 
-      - name: Deploy to S3 (shopping-app)
-        working-directory: frontend
-        run: |
-          aws s3 sync dist s3://${{ secrets.S3_BUCKET_FRONTEND_PROD }}/shopping-app --delete
+      - name: Terraform Init
+        working-directory: infra/envs/prod/runtime
+        run: terraform init
 
-      - name: Invalidate CloudFront cache (shopping-app)
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
-            --paths "/shopping-app/*"
+      - name: Terraform Apply
+        working-directory: infra/envs/prod/runtime
+        run: terraform apply -auto-approve
