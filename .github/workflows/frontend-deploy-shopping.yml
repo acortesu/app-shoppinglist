@@ -3,9 +3,10 @@ name: Frontend CI/CD (Shopping App)
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - "frontend/**"
+      - ".github/workflows/frontend-deploy-shopping.yml"
 
 permissions:
   contents: read
@@ -41,10 +42,10 @@ jobs:
       - name: Deploy to S3 (shopping-app)
         working-directory: frontend
         run: |
-          aws s3 sync dist s3://${{ secrets.S3_BUCKET_PROD }}/shopping-app --delete
+          aws s3 sync dist s3://${{ secrets.S3_BUCKET_FRONTEND_PROD }}/shopping-app --delete
 
       - name: Invalidate CloudFront cache (shopping-app)
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DIST_PROD }} \
+            --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
             --paths "/shopping-app/*"

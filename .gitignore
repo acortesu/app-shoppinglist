@@ -15,6 +15,12 @@ backend/build/
 # Frontend build
 frontend/node_modules/
 frontend/dist/
+
+# Frontend envs
+frontend/.env
+frontend/.env.*.local
+frontend/.env.production
+frontend/.env.development.local
 .env.development.local
 .env.production.local
 .env.local
