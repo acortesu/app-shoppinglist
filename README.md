@@ -1,264 +1,298 @@
-# appCompras - Week Meal Prep + Shopping List
 
-MVP mobile-first para planificar comidas y generar lista de compras editable.
 
-Objetivo principal: mantener una UX simple para el usuario final y un backend consistente para evitar duplicados, errores de unidades y problemas de ownership por usuario.
+# appCompras – DevOps Portfolio Project
 
-## Estado actual del proyecto
+This project is part of my DevOps portfolio and focuses on designing, deploying, and operating a real-world container-based cloud architecture using AWS, Terraform, and GitHub Actions.
 
-Backend y frontend están integrados en `master` con:
+The application is a personal shopping and meal planning app composed of:
 
-- Persistencia PostgreSQL para recetas, planes y drafts de compras.
-- Migraciones Flyway hasta `V7`.
-- Auth JWT Google opcional por entorno (`APP_SECURITY_REQUIRE_AUTH=true|false`).
-- Aislamiento por usuario (`user_id`) para datos principales.
-- Generación de shopping list con idempotencia (`Idempotency-Key`).
-- API versionada (`X-API-Version: 1` o `v1`).
-- UI React mobile-first (recetas, planificador y compras).
-- CI backend con tests unitarios/aplicación + integración Postgres (Testcontainers).
+- A React + Vite frontend deployed as a static website
+- A Spring Boot backend deployed on ECS Fargate
+- A PostgreSQL database hosted on AWS RDS
 
-## Stack técnico
+The primary goal of this project is learning and showcasing DevOps practices, infrastructure decisions, CI/CD workflows, and cost-aware cloud architecture — not just building the application.
 
-- Backend: Java 17, Spring Boot 3.3, Spring Security Resource Server, Spring Data JPA, Flyway, OpenAPI (springdoc), Actuator, Micrometer Prometheus.
-- DB: PostgreSQL 16.
-- Frontend: React 18 + Vite 5.
-- Contenedores: Docker / Docker Compose.
-- CI: GitHub Actions.
-- IaC (pendiente de implementación completa): Terraform en `infra/`.
+---
 
-## Estructura del repo
+## Architecture (Current State)
 
-- `backend/`: API REST, dominio, seguridad, persistencia y migraciones.
-- `frontend/`: SPA React/Vite mobile-first.
-- `scripts/`: utilidades locales (`dev-up`, `dev-down`, smoke E2E).
-- `docs/`: decisiones y handoff funcional/técnico del MVP.
-- `infra/`: guía base para Terraform (pendiente bootstrap de módulos).
+```text
+User
+ ↓
+Browser
+ ↓
+CloudFront (HTTPS)
+ ↓
+AWS S3 (Static Hosting)
+ ↓
+React + Vite Frontend (/shopping-app)
+ ↓
+HTTPS (REST)
+ ↓
+Application Load Balancer (ALB)
+ ↓
+ECS Fargate (Spring Boot Container)
+ ↓
+AWS RDS (PostgreSQL)
+```
 
-## Arquitectura
+---
+
+## Architecture Diagram
+
+See `docs/architecture.png` for the full infrastructure diagram.
+
+---
+
+## Tech Stack
+
+### Frontend
+
+- React 18
+- Vite
+- Tailwind CSS
+- AWS S3 (static hosting)
+- AWS CloudFront (CDN + HTTPS)
+- Google OAuth (Authentication)
 
 ### Backend
 
-Paquetes principales (`backend/src/main/java/com/appcompras`):
+- Java 17
+- Spring Boot
+- Docker
+- AWS ECS (Fargate)
+- AWS Application Load Balancer
+- AWS RDS (PostgreSQL)
 
-- `recipe`: CRUD de recetas.
-- `planning`: CRUD de meal plans (`WEEK`/`FORTNIGHT`, slots `BREAKFAST/LUNCH/DINNER`).
-- `shopping`: generación, lectura y edición de drafts.
-- `ingredient`: catálogo + custom ingredients.
-- `service`: lógica de dominio (catálogo, conversiones, agregación de compras).
-- `security`: validación JWT Google y políticas de acceso.
-- `config`: OpenAPI, manejo de errores, API versioning, filtros de request logging.
-- `domain`: modelos de negocio.
+### Infrastructure / DevOps
 
-Principios aplicados:
+- Terraform (Infrastructure as Code)
+- AWS S3 (Terraform remote state)
+- DynamoDB (state locking)
+- GitHub Actions (CI/CD)
+- AWS IAM (least-privilege access)
+- ECS + RDS start/stop automation for cost optimization
 
-- Backend stateless.
-- Contrato de error consistente (`ApiError` con `code`).
-- IDs canónicos para ingredientes (ej. `rice`) para evitar duplicados.
-- Labels amigables para UI (`preferredLabel`, aliases) sin romper canonical IDs.
+---
 
-### Frontend
+## Key DevOps Decisions
 
-Archivos principales (`frontend/src`):
+### Static Frontend Deployment (S3 + CloudFront)
 
-- `App.jsx`: composición de tabs y flujos principales.
-- `api.js`: cliente API, headers comunes, token auth y cache simple en memoria.
-- `styles.css`: tema mobile-first.
+The frontend is deployed as a static SPA to:
 
-Pantallas MVP:
+- Reduce infrastructure cost
+- Decouple frontend and backend deployments
+- Improve global performance via CDN
+- Simplify CI/CD
 
-- Recetas: list/search/create/update/delete.
-- Planificador: vista semanal/quincenal, selección por slot, guardar plan.
-- Compras: generar draft, editar items, marcar comprados, reordenar, guardar.
-- AuthGate: Google Sign-In cuando auth está activo.
+The frontend is served under:
 
-### Datos y reglas importantes
-
-- El usuario puede escribir ingredientes en español; backend resuelve aliases y guarda `ingredientId` canónico.
-- La UI muestra `preferredLabel` (amigable) en sugerencias y shopping list.
-- Nombres visibles se normalizan a formato `Display Case` (ej. `SALSA`, `sALsa` -> `Salsa`).
-
-## Contrato API (resumen)
-
-Header recomendado:
-
-- `X-API-Version: 1`
-
-Auth (si aplica):
-
-- `Authorization: Bearer <google_id_token>`
-
-Grupos de endpoints:
-
-- `GET/POST/PUT/DELETE /api/recipes`
-- `GET/POST/PUT/DELETE /api/plans`
-- `POST /api/shopping-lists/generate?planId=...`
-- `GET /api/shopping-lists`
-- `GET /api/shopping-lists/{id}`
-- `PUT /api/shopping-lists/{id}`
-- `DELETE /api/shopping-lists/{id}`
-- `GET /api/ingredients`
-- `POST /api/ingredients/custom`
-
-Documentación runtime:
-
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-
-## Desarrollo local
-
-### Requisitos
-
-- Docker / Docker Compose
-- Node.js + npm
-- Java 17 + Gradle
-- `curl` y `jq` (para script smoke)
-
-### Variables de entorno
-
-1. Copiar archivo base:
-
-```bash
-cp .env.example .env
+```
+https://www.acortesdev.xyz/shopping-app/
 ```
 
-2. Configurar al menos:
+This follows a path-based routing strategy to host multiple projects under a single domain.
 
-- `APP_SECURITY_REQUIRE_AUTH` (`true` o `false`)
-- `GOOGLE_CLIENT_ID` (si auth=true)
+---
 
-Opcional frontend (`frontend/.env`):
+### Containerized Backend (ECS Fargate)
 
-- `VITE_REQUIRE_AUTH=true|false`
-- `VITE_GOOGLE_CLIENT_ID=<google-web-client-id>`
-- `VITE_API_BASE_URL` (si no usas proxy de Vite)
+The backend runs as a Docker container on ECS Fargate:
 
-### Levantar servicios
+- No EC2 management
+- Managed scaling
+- Clean separation between infrastructure and application
+- Production-grade architecture (ALB + private subnets)
 
-Desde la raíz del repo:
+This approach was intentionally chosen over serverless to:
 
-```bash
-cd /Users/alo/Documents/Code/appCompras/appCompras
-```
+- Learn container orchestration
+- Work with networking (VPC, subnets, security groups)
+- Handle database-backed production workloads
 
-Solo Postgres:
+---
 
-```bash
-./scripts/dev-up.sh
-```
+### PostgreSQL on RDS (Persistent State)
 
-Postgres + backend dockerizado:
+Unlike serverless architectures, this app requires persistent data:
 
-```bash
-./scripts/dev-up.sh app
-```
+- Recipes
+- Ingredients
+- Plans
+- Shopping lists
 
-Apagar:
+RDS provides:
 
-```bash
-./scripts/dev-down.sh
-```
+- Managed backups
+- Automated maintenance
+- Encrypted storage
+- Snapshot recovery capabilities
 
-Rebuild backend (cuando cambias código backend):
+---
 
-```bash
-docker compose --profile app up -d --build backend
-```
+### Cost Optimization Strategy
 
-### Frontend
+This project is designed to remain under approximately $10/month.
 
-```bash
-cd /Users/alo/Documents/Code/appCompras/appCompras/frontend
-npm install
-npm run dev
-```
+To achieve this:
 
-- App: `http://localhost:5173`
-- Vite proxy apunta a `http://localhost:8080` para `/api`, `/actuator`, `/v3/api-docs`, `/swagger-ui`.
+- ECS desired count can be set to 0
+- RDS instance can be stopped
+- GitHub Actions workflows automate:
+  - `prod-stop`
+  - `prod-start`
 
-## Testing y calidad
+This allows production infrastructure to be turned on only when needed, while preserving database state.
 
-Backend completo:
+---
 
-```bash
-cd /Users/alo/Documents/Code/appCompras/appCompras/backend
-gradle --no-daemon test
-```
+## CI/CD Pipelines
 
-Integración Postgres (Testcontainers):
+### Backend CI Pipeline
 
-```bash
-cd /Users/alo/Documents/Code/appCompras/appCompras/backend
-gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest
-```
+Triggered on pull requests to `master`:
 
-Smoke E2E local (flujo funcional backend):
+- Run unit tests
+- Run integration tests (PostgreSQL)
+- Validate application integrity
 
-```bash
-cd /Users/alo/Documents/Code/appCompras/appCompras
-./scripts/smoke-backend-e2e.sh
-```
+---
 
-Frontend:
+### Backend CD Pipeline (ECS + Terraform)
 
-```bash
-cd /Users/alo/Documents/Code/appCompras/appCompras/frontend
-npm run build
-npm run test
-```
+Triggered on push to `master`:
 
-## Docker
+1. Build Docker image (ARM64)
+2. Push image to Amazon ECR
+3. Run Terraform
+4. Update ECS task definition with new image tag
+5. Deploy new revision automatically
 
-`docker-compose.yml` define:
+Terraform state is stored remotely in S3 with DynamoDB locking.
 
-- `postgres` (siempre): `postgres:16-alpine`, puerto `5432`.
-- `backend` (profile `app`): build desde `backend/Dockerfile`, puerto `8080`.
+---
 
-Backend container variables clave:
+### Frontend Pipeline
 
-- `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
-- `APP_SECURITY_REQUIRE_AUTH`
-- `GOOGLE_CLIENT_ID`
+Triggered on changes to `/frontend`:
 
-## CI
+1. Install dependencies
+2. Build production assets
+3. Upload to S3 (`/shopping-app`)
+4. Invalidate CloudFront cache
 
-Workflow: `.github/workflows/backend-ci.yml`
+---
 
-Jobs:
+### Infrastructure Control Pipelines
 
-- `backend-unit`: tests unitarios/aplicación por paquetes.
-- `backend-integration-postgres`: `PostgresE2EFlowTest` con Testcontainers.
+Manual workflows:
 
-## Handoff para DevOps (siguiente fase)
+- `prod-stop` → Stops ECS service and RDS
+- `prod-start` → Starts RDS and ECS service
 
-Estado actual infra:
+These workflows allow full infrastructure control without manual console access.
 
-- `infra/` está en fase base (README), sin módulos Terraform implementados aún.
+---
 
-Siguientes pasos recomendados:
+## Secrets Management
 
-1. Definir módulos Terraform por entorno (`dev`/`prod`): VPC, RDS, ECS Fargate, ALB, ECR, S3, CloudFront, IAM.
-2. Pipeline CI/CD: build imagen backend, push a ECR, deploy a ECS (rolling).
-3. Secrets/variables en entorno gestionado (no en `.env` local).
-4. Observabilidad en cloud: métricas, logs estructurados, alertas.
-5. Estrategia de branch protection y release tagging.
+- AWS credentials stored in GitHub Environments (prod)
+- No secrets committed to the repository
+- Google OAuth Client ID injected at build time
+- Database credentials stored securely in AWS Secrets Manager
 
-## Handoff para otro agente AI
+IAM permissions follow least-privilege principles.
 
-Si vas a continuar con otro agente, comparte esto como contexto mínimo:
+---
 
-- Repo: `/Users/alo/Documents/Code/appCompras/appCompras`
-- Rama actual: `master`
-- Backend: Spring Boot + Postgres + Flyway + JWT Google opcional.
-- Frontend: React/Vite mobile-first en un solo `App.jsx` + `api.js`.
-- Convención ingredientes:
-  - Backend guarda `ingredientId` canónico.
-  - UI muestra `preferredLabel` y aliases amigables.
-- Comandos clave:
-  - `./scripts/dev-up.sh app`
-  - `docker compose --profile app up -d --build backend`
-  - `cd frontend && npm run dev`
-  - `cd backend && gradle --no-daemon test`
-- Documentos clave:
-  - `docs/frontend-handoff-mvp-mobile-first.md`
-  - `docs/backend-mvp-dod.md`
+## Validation and Debugging
 
+- ECS service health checks via ALB
+- Spring Boot `/actuator/health`
+- CloudWatch Logs for runtime debugging
+- CORS validation and OAuth integration testing
+- Terraform state validation and lock verification
+
+Real-world issues solved:
+
+- CORS misconfiguration
+- IAM permission errors in CI
+- Terraform backend migration
+- ECS image architecture mismatch (ARM64 vs x86)
+- Remote state duplication cleanup
+
+---
+
+## Live Deployment
+
+- Frontend: https://www.acortesdev.xyz/shopping-app/
+- Backend API: https://api.acortesdev.xyz
+- HTTPS via ACM + ALB
+- Containerized production deployment
+
+---
+
+## Current Status
+
+- Frontend deployed via S3 + CloudFront
+- Backend deployed via ECS Fargate
+- RDS PostgreSQL integrated
+- Remote Terraform state configured (S3 + DynamoDB)
+- CI/CD fully operational
+- Infrastructure start/stop automation implemented
+- IAM least-privilege configured
+- Branch protection enabled
+
+---
+
+## Learning Outcomes
+
+- Designing production-grade VPC networking
+- Managing container-based deployments
+- Implementing Infrastructure as Code with Terraform
+- Building safe CI/CD pipelines
+- Rotating IAM credentials securely
+- Remote state management and locking
+- Cost-aware architecture design
+- Production debugging and incident resolution
+
+---
+
+## Possible Next Enhancements
+
+- Blue/Green deployments for ECS
+- Observability improvements (metrics and alarms)
+- Automated RDS snapshot workflow
+- OIDC authentication for GitHub Actions (remove static keys)
+- Horizontal scaling policies
+- Load testing and performance profiling
+
+---
+
+## Environment Strategy
+
+This project intentionally uses:
+
+- Local environment (Docker + Postgres)
+- Production environment (AWS)
+
+A separate dev cloud environment was avoided to:
+
+- Minimize AWS costs
+- Keep architecture focused
+- Maintain simplicity for a portfolio use case
+
+This reflects real-world cost trade-offs in small-scale production systems.
+
+---
+
+## Versioning and Releases
+
+This project follows Semantic Versioning (SemVer):
+
+- MAJOR – Breaking changes
+- MINOR – Backward-compatible features
+- PATCH – Bug fixes
+
+All production deployments are triggered from the protected `master` branch.
