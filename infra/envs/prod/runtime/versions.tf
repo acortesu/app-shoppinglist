@@ -11,13 +11,6 @@ terraform {
       version = "~> 3.6"
     }
   }
-
-  backend "s3" {
-    bucket = "acortesdev-terraform-state"
-    key    = "appcompras/prod/runtime.tfstate"
-    region = "us-east-1"
-    # DynamoDB lock lo agregamos después (fase siguiente)
-  }
 }
 
 provider "aws" {
