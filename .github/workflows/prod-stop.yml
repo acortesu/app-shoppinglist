@@ -25,6 +25,7 @@ jobs:
 
       - name: Scale ECS service to 0
         run: |
+
           aws ecs update-service \
             --cluster "$ECS_CLUSTER" \
             --service "$ECS_SERVICE" \
@@ -49,6 +50,18 @@ jobs:
           done
           echo "Timed out waiting for ECS to stop."
           exit 1
+
+      - name: Wait until instance is available
+        run: |
+          aws rds wait db-instance-available \
+            --db-instance-identifier "$RDS_ID" \
+            --region "$AWS_REGION"
+          echo "RDS status:"
+          aws rds describe-db-instances \
+            --db-instance-identifier "$RDS_ID" \
+            --region "$AWS_REGION" \
+            --query 'DBInstances[0].DBInstanceStatus' \
+            --output text
 
       - name: Stop RDS instance
         run: |
