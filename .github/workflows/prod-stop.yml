@@ -1,0 +1,65 @@
+name: Prod - STOP (ECS + RDS)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      ECS_CLUSTER: appcompras-prod-cluster
+      ECS_SERVICE: appcompras-prod-backend-svc
+      RDS_ID: appcompras-prod-postgres
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Scale ECS service to 0
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --desired-count 0 \
+            --region "$AWS_REGION"
+
+      - name: Wait until ECS runningCount=0
+        run: |
+          for i in {1..40}; do
+            RUNNING=$(aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --region "$AWS_REGION" \
+              --query 'services[0].runningCount' \
+              --output text)
+            echo "runningCount=$RUNNING"
+            if [ "$RUNNING" = "0" ]; then
+              echo "ECS is stopped."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for ECS to stop."
+          exit 1
+
+      - name: Stop RDS instance
+        run: |
+          aws rds stop-db-instance \
+            --db-instance-identifier "$RDS_ID" \
+            --region "$AWS_REGION"
+
+      - name: Show RDS status
+        run: |
+          aws rds describe-db-instances \
+            --db-instance-identifier "$RDS_ID" \
+            --region "$AWS_REGION" \
+            --query 'DBInstances[0].DBInstanceStatus' \
+            --output text

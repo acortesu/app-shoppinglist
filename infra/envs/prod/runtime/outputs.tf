@@ -25,3 +25,11 @@ output "ecs_service_name" {
 output "task_definition_arn" {
   value = aws_ecs_task_definition.backend.arn
 }
+
+output "rds_identifier" {
+  value = aws_db_instance.this.identifier
+}
+
+output "rds_endpoint" {
+  value = aws_db_instance.this.address
+}

@@ -1,0 +1,66 @@
+name: Prod - START (RDS + ECS)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      ECS_CLUSTER: appcompras-prod-cluster
+      ECS_SERVICE: appcompras-prod-backend-svc
+      RDS_ID: appcompras-prod-postgres
+      ECS_DESIRED: "1"
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Start RDS instance
+        run: |
+          aws rds start-db-instance \
+            --db-instance-identifier "$RDS_ID" \
+            --region "$AWS_REGION" || true
+
+      - name: Wait until RDS is available
+        run: |
+          for i in {1..80}; do
+            STATUS=$(aws rds describe-db-instances \
+              --db-instance-identifier "$RDS_ID" \
+              --region "$AWS_REGION" \
+              --query 'DBInstances[0].DBInstanceStatus' \
+              --output text)
+            echo "rdsStatus=$STATUS"
+            if [ "$STATUS" = "available" ]; then
+              echo "RDS is available."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for RDS to be available."
+          exit 1
+
+      - name: Scale ECS service to desired count
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --desired-count "$ECS_DESIRED" \
+            --region "$AWS_REGION"
+
+      - name: Show ECS status
+        run: |
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[0].{desired:desiredCount,running:runningCount,pending:pendingCount}' \
+            --output yaml
