@@ -15,6 +15,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+        name: production
+        url: https://api.acortesdev.xyz
 
     env:
       AWS_REGION: us-east-1
@@ -73,4 +76,4 @@ jobs:
           TF_VAR_db_username: ${{ secrets.DB_USERNAME }}
           TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: terraform apply -auto-approve -var="backend_image_tag=${TAG}"
-        
+
