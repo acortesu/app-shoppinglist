@@ -1,8 +1,8 @@
-# Modelo de dominio (MVP)
+# Domain model (MVP)
 
 ## Recipe
 
-Campos obligatorios:
+Required fields:
 - `id`
 - `name`
 - `type`: `breakfast | lunch | dinner`
@@ -11,9 +11,9 @@ Campos obligatorios:
 `RecipeIngredient`:
 - `ingredient_id`
 - `quantity` (number)
-- `unit` (válida para ese ingrediente)
+- `unit` (must be allowed for the ingredient)
 
-Campos opcionales:
+Optional fields:
 - `preparation`
 - `notes`
 - `tags[]`
@@ -26,22 +26,22 @@ Metadata:
 
 ## Ingredient Catalog
 
-Tipos de medición:
-- `WEIGHT` -> base interna `grams`
-- `VOLUME` -> base interna `milliliters`
-- `UNIT` -> base interna `unit`
-- `TO_TASTE` -> no se suma automáticamente
+Measurement types:
+- `WEIGHT` -> internal base `grams`
+- `VOLUME` -> internal base `milliliters`
+- `UNIT` -> internal base `unit`
+- `TO_TASTE` -> not aggregated automatically
 
-El catálogo define:
-- unidades permitidas por ingrediente
-- reglas de conversión por ingrediente + unidad
-- sugerencias de compra (ej. arroz paquete 1kg)
+The catalog defines:
+- allowed units per ingredient
+- conversion rules per ingredient + unit
+- shopping suggestions (e.g. rice 1kg pack)
 
 ## Shopping List
 
-Flujo:
-1. tomar recetas del período
-2. convertir ingredientes a unidad base
-3. agrupar por ingrediente
-4. sugerir compra (packaging común)
-5. permitir edición libre del resultado
+Flow:
+1. collect recipes for the period
+2. convert ingredients to the base unit
+3. group by ingredient
+4. suggest purchase (common packaging)
+5. allow free editing of the result

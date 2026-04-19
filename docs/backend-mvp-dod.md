@@ -1,66 +1,66 @@
 # Backend MVP Definition of Done
 
-Estado objetivo para considerar el backend del MVP listo para frontend y demo.
+Target state for the MVP backend to be considered ready for frontend and demo.
 
-## 1) API y contrato
+## 1) API and contract
 
-- Endpoints base funcionando y estables:
+- Base endpoints working and stable:
   - `recipes`: CRUD.
   - `plans`: CRUD.
   - `shopping-lists`: generate/get/list/update/delete.
   - `ingredients`: list/search + custom.
-- Persistencia en PostgreSQL con Flyway (migraciones aplicadas).
-- Payload de errores estandarizado (`ApiError`) con `code` consistente.
-- Versionado de API no rompiente con header opcional `X-API-Version`.
+- Persistence in PostgreSQL with Flyway (migrations applied).
+- Standardized error payload (`ApiError`) with a consistent `code`.
+- Non-breaking API versioning via optional `X-API-Version` header.
 
-## 2) Reglas de negocio
+## 2) Business rules
 
-- Normalización de ingredientes (case/acento/alias) activa en create/update.
-- Validación de unidades permitidas por ingrediente.
-- Aislamiento por usuario (`user_id`) en recetas, planes y drafts.
-- Shopping draft editable con:
-  - `bought` (comprado/no comprado)
-  - `note` por item
-  - `sortOrder` manual
-- Idempotencia en generación de shopping draft con `Idempotency-Key`.
+- Ingredient normalization (case/accent/alias) active on create/update.
+- Per-ingredient allowed-unit validation.
+- Per-user (`user_id`) isolation for recipes, plans and drafts.
+- Editable shopping draft with:
+  - `bought` (done/not done)
+  - `note` per item
+  - manual `sortOrder`
+- Idempotent shopping-draft generation via `Idempotency-Key`.
 
-## 3) Calidad y tests
+## 3) Quality and tests
 
-- Tests backend locales en verde:
-  - `cd backend && gradle --no-daemon test`
-- Test integración Postgres real (Testcontainers) en verde:
-  - `cd backend && gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
-- Smoke script E2E local en verde:
+- Local backend tests green:
+  - `cd backend && ./gradlew --no-daemon test`
+- Real-Postgres integration test (Testcontainers) green:
+  - `cd backend && ./gradlew --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
+- Local E2E smoke script green:
   - `./scripts/smoke-backend-e2e.sh`
 
-## 4) CI y merge gates
+## 4) CI and merge gates
 
-- Workflow `.github/workflows/backend-ci.yml` con dos jobs:
+- Workflow `.github/workflows/backend-ci.yml` with two jobs:
   - `backend-unit`
   - `backend-integration-postgres`
-- Branch protection en GitHub (manual):
+- GitHub branch protection (manual):
   - `Settings > Branches > Branch protection rules > master`
-  - habilitar:
+  - enable:
     - Require a pull request before merging
     - Require status checks to pass before merging
-    - status checks requeridos:
+    - required status checks:
       - `backend-unit`
       - `backend-integration-postgres`
 
-## 5) Operación local mínima
+## 5) Minimum local operation
 
-- `.env` configurado en raíz del repo.
-- `docker compose up -d postgres` funciona.
-- Backend levanta contra Postgres y expone:
+- `.env` configured at repo root.
+- `docker compose up -d postgres` works.
+- Backend boots against Postgres and exposes:
   - `/swagger-ui.html`
   - `/v3/api-docs`
   - `/actuator/health`
 
-## 6) Documentación mínima al día
+## 6) Minimum documentation up to date
 
-- README actualizado con:
-  - setup local
-  - seguridad/JWT
-  - versionado API
+- README updated with:
+  - local setup
+  - security/JWT
+  - API versioning
   - troubleshooting
-  - política de versionado del catálogo seed
+  - seed catalog versioning policy

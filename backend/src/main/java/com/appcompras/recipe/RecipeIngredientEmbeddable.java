@@ -1,5 +1,6 @@
 package com.appcompras.recipe;
 
+import com.appcompras.domain.Unit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;

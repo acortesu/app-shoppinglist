@@ -28,7 +28,7 @@ jobs:
       - name: Run backend unit/application tests
         working-directory: backend
         run: >
-          gradle --no-daemon test
+          ./gradlew --no-daemon test
           --tests "com.appcompras.recipe.*"
           --tests "com.appcompras.planning.*"
           --tests "com.appcompras.shopping.*"
@@ -57,4 +57,4 @@ jobs:
 
       - name: Run backend Postgres integration test
         working-directory: backend
-        run: gradle --no-daemon test --tests "com.appcompras.integration.PostgresE2EFlowTest"
+        run: ./gradlew --no-daemon test --tests "com.appcompras.integration.PostgresE2EFlowTest"

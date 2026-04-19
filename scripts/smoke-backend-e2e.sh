@@ -6,7 +6,7 @@ BACKEND_DIR="$ROOT_DIR/backend"
 API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:8088}"
 SERVER_PORT="${SERVER_PORT:-8088}"
 GRADLE_USER_HOME="${GRADLE_USER_HOME:-$ROOT_DIR/.gradle-user-home}"
-GRADLE_BIN="${GRADLE_BIN:-gradle}"
+GRADLE_BIN="${GRADLE_BIN:-$BACKEND_DIR/gradlew}"
 
 if [[ ! -d "$BACKEND_DIR" ]]; then
   echo "backend directory not found at $BACKEND_DIR"
@@ -28,8 +28,8 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v "$GRADLE_BIN" >/dev/null 2>&1; then
-  echo "gradle is required (set GRADLE_BIN to custom path if needed)"
+if [[ ! -x "$GRADLE_BIN" ]] && ! command -v "$GRADLE_BIN" >/dev/null 2>&1; then
+  echo "gradle wrapper not executable at $GRADLE_BIN (set GRADLE_BIN to override)"
   exit 1
 fi
 
