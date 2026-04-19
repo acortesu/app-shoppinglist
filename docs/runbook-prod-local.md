@@ -1,6 +1,6 @@
-# Runbook Local + Prod
+# Local + Prod runbook
 
-## Paths base
+## Base paths
 
 ```bash
 export ROOT=/Users/alo/Documents/Code/appCompras/appCompras
@@ -33,7 +33,7 @@ cd $ROOT
 ./scripts/dev-down.sh
 ```
 
-## Deploy backend a prod (ECS + Terraform)
+## Deploy backend to prod (ECS + Terraform)
 
 ### 1) Variables
 
@@ -42,9 +42,9 @@ export ACCOUNT_ID=430241514032
 export AWS_REGION=us-east-1
 ```
 
-### 2) Definir `TAG` (recomendado)
+### 2) Set `TAG` (recommended)
 
-Usa un tag único por deploy.
+Use a unique tag per deploy.
 
 ```bash
 cd /Users/alo/Documents/Code/appCompras/appCompras
@@ -52,20 +52,20 @@ export TAG="$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)"
 echo "$TAG"
 ```
 
-Ver último cambio (commit):
+Show latest local commit:
 
 ```bash
 git log -1 --oneline
 ```
 
-Ver último commit en remoto:
+Show latest remote commit:
 
 ```bash
 git fetch origin
 git log -1 --oneline origin/master
 ```
 
-### 3) Build y push de imagen
+### 3) Build and push image
 
 ```bash
 cd $BACKEND
@@ -80,7 +80,7 @@ ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/appcompras-backend-prod:$TAG
 docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/appcompras-backend-prod:$TAG
 ```
 
-### 4) Actualizar y aplicar Terraform
+### 4) Update and apply Terraform
 
 ```bash
 cd $TF_PROD
@@ -91,7 +91,7 @@ terraform plan
 terraform apply
 ```
 
-## Verificación backend en prod
+## Verify backend in prod
 
 ```bash
 aws ecs describe-services \
@@ -119,7 +119,7 @@ curl -i -X OPTIONS "https://api.acortesdev.xyz/api/shopping-lists/generate?planI
   -H "Access-Control-Request-Headers: content-type,authorization,x-api-version,idempotency-key"
 ```
 
-## Deploy frontend prod
+## Deploy frontend to prod
 
 ```bash
 cd $FRONTEND
@@ -127,33 +127,33 @@ npm install
 npm run build
 ```
 
-Publicar `dist/` con el mecanismo de frontend que uses.
-Si usas S3 + CloudFront:
+Publish `dist/` via your frontend pipeline.
+If using S3 + CloudFront:
 
 ```bash
-aws s3 sync dist/ s3://<TU_BUCKET>/shopping-app/ --delete
-aws cloudfront create-invalidation --distribution-id <TU_DISTRIBUTION_ID> --paths "/shopping-app/*"
+aws s3 sync dist/ s3://<YOUR_BUCKET>/shopping-app/ --delete
+aws cloudfront create-invalidation --distribution-id <YOUR_DISTRIBUTION_ID> --paths "/shopping-app/*"
 ```
 
-## Token para Postman
+## Token for Postman
 
-1. Login en `https://acortesdev.xyz/shopping-app/`
-2. En consola:
+1. Log in at `https://acortesdev.xyz/shopping-app/`
+2. In the browser console:
 
 ```js
 localStorage.getItem('appcompras_id_token')
 ```
 
-3. Usar en requests:
+3. Use it in requests:
 
 ```http
 Authorization: Bearer <TOKEN>
 X-API-Version: 1
 ```
 
-## Placeholders que debes reemplazar
+## Placeholders to replace
 
-1. `s3://<TU_BUCKET>/shopping-app/` -> bucket real frontend.
-2. `<TU_DISTRIBUTION_ID>` -> CloudFront distribution real.
-3. `<TOKEN>` -> Google ID token vigente.
-4. `planId=test` -> UUID de plan para request real (en preflight puede quedarse `test`).
+1. `s3://<YOUR_BUCKET>/shopping-app/` -> actual frontend bucket.
+2. `<YOUR_DISTRIBUTION_ID>` -> actual CloudFront distribution.
+3. `<TOKEN>` -> current Google ID token.
+4. `planId=test` -> real plan UUID for real requests (for preflight `test` is fine).

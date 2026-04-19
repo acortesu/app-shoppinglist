@@ -1,25 +1,25 @@
-# Arquitectura objetivo
+# Target architecture
 
 ## Frontend
 - React + Vite
-- App SPA
-- Deploy estático en S3 + CloudFront
+- SPA
+- Static deploy on S3 + CloudFront
 
 ## Backend
 - Java 17
 - Spring Boot REST API
 - Dockerized, stateless
-- Lógica de negocio desacoplada de infraestructura
+- Business logic decoupled from infrastructure
 
 ## Database
-- PostgreSQL en RDS
-- Una base por entorno
+- PostgreSQL on RDS
+- One database per environment
 
 ## Auth
 - AWS Cognito (User Pool + JWT)
 
 ## Infra (Terraform)
-Recursos:
+Resources:
 - VPC, subnets, security groups
 - ECS cluster/service (Fargate)
 - ALB
@@ -29,13 +29,13 @@ Recursos:
 - S3
 - CloudFront
 
-Entornos:
+Environments:
 - dev
 - prod
 
-## CI/CD conceptual
+## CI/CD outline
 1. PR: lint + tests
-2. Merge: build Docker
-3. Push a ECR
+2. Merge: build Docker image
+3. Push to ECR
 4. Terraform plan/apply
 5. ECS rolling deploy

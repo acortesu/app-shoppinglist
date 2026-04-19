@@ -8,50 +8,50 @@ npm install
 npm run dev
 ```
 
-App por defecto en `http://localhost:5173`.
+App runs at `http://localhost:5173` by default.
 
-## Variables
+## Environment variables
 
-Crear `.env` opcional en `frontend/`:
+Optional `.env` under `frontend/`:
 
 ```bash
 VITE_API_BASE_URL=http://localhost:8081
 ```
 
-Si no defines `VITE_API_BASE_URL`, el frontend usa proxy de Vite a `http://localhost:8080` (sin problemas de CORS en local).
+If `VITE_API_BASE_URL` is unset, the frontend uses the Vite proxy to `http://localhost:8080` (no CORS issues in local dev).
 
-## Alcance implementado
+## Implemented scope
 
-- Tab `Recetas`: listar, buscar, crear, editar y eliminar recetas.
-- Tab `Planificador`: semanal/quincenal, slots breakfast/lunch/dinner y guardar plan.
-- Tab `Compras`: generar draft desde plan, editar items y guardar cambios.
-- Manejo base de errores desde `ApiError.error`.
-- Header `X-API-Version: 1` en todas las llamadas.
+- `Recipes` tab: list, search, create, edit and delete recipes.
+- `Planner` tab: weekly/fortnightly view, breakfast/lunch/dinner slots, save plan.
+- `Shopping` tab: generate draft from a plan, edit items, save changes.
+- Baseline error handling from `ApiError.error`.
+- `X-API-Version: 1` header on every call.
 
 ## Auth
 
-Si backend requiere auth (`APP_SECURITY_REQUIRE_AUTH=true`), la app muestra `AuthGate` al iniciar.
-Pega tu `google id_token` y entra.
+If the backend requires auth (`APP_SECURITY_REQUIRE_AUTH=true`), the app shows `AuthGate` at startup.
+Paste your `google id_token` to enter.
 
-Alternativa por consola:
+Console alternative:
 
 ```js
 localStorage.setItem('appcompras_id_token', '<google_id_token>')
 ```
 
-Para limpiar token:
+Clear the token:
 
 ```js
 localStorage.removeItem('appcompras_id_token')
 ```
 
-Para desarrollo local rápido sin login, en `/Users/alo/Documents/Code/appCompras/appCompras/.env` usa:
+For quick local dev without login, in `/Users/alo/Documents/Code/appCompras/appCompras/.env` set:
 
 ```bash
 APP_SECURITY_REQUIRE_AUTH=false
 ```
 
-y recrea backend:
+Then recreate the backend:
 
 ```bash
 cd /Users/alo/Documents/Code/appCompras/appCompras
@@ -60,24 +60,24 @@ docker compose --profile app up -d --force-recreate backend
 
 ## Google Sign-In UI (Account Chooser)
 
-Configura en `frontend/.env`:
+Configure in `frontend/.env`:
 
 ```bash
 VITE_REQUIRE_AUTH=true
-VITE_GOOGLE_CLIENT_ID=tu-google-web-client-id.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
 ```
 
-Debe coincidir con `GOOGLE_CLIENT_ID` del backend para que el token `id_token` pase validación de audiencia.
+Must match the backend's `GOOGLE_CLIENT_ID` so the `id_token` passes audience validation.
 
-La app valida en cliente:
-- formato JWT
-- expiración (`exp`)
-- `aud` contra `VITE_GOOGLE_CLIENT_ID`
-- `iss` de Google
+Client-side validation covers:
+- JWT format
+- expiration (`exp`)
+- `aud` against `VITE_GOOGLE_CLIENT_ID`
+- `iss` from Google
 
-## Errores de API (`ApiError.code`)
+## API errors (`ApiError.code`)
 
-Hay mapeo contextual de códigos de negocio a mensajes UX para:
+Context-aware mapping from business codes to UX messages for:
 - auth
 - recipe form
 - planner
