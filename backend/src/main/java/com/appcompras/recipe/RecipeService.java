@@ -135,8 +135,7 @@ public class RecipeService {
                         "Unknown ingredient: " + input.ingredientId() + ". Use /api/ingredients to discover options or create custom."
                 ));
 
-        com.appcompras.domain.Unit domainUnit = com.appcompras.domain.Unit.valueOf(input.unit().name());
-        if (!ingredientCatalogService.isUnitAllowed(canonicalIngredientId, domainUnit)) {
+        if (!ingredientCatalogService.isUnitAllowed(canonicalIngredientId, input.unit())) {
             throw new BusinessRuleException(
                     "INVALID_INGREDIENT_UNIT",
                     "Unit " + input.unit() + " is not allowed for ingredient " + canonicalIngredientId

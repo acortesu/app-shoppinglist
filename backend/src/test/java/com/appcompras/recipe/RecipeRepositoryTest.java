@@ -1,5 +1,6 @@
 package com.appcompras.recipe;
 
+import com.appcompras.domain.Unit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

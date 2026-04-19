@@ -1,5 +1,6 @@
 package com.appcompras.recipe;
 
+import com.appcompras.domain.Unit;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
