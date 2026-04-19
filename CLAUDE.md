@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Active plan
 
-Full plan at `~/.claude/plans/ok-antes-de-comenzar-zesty-bee.md`. Each block is one PR; each numbered atomic task below is one commit with its own test delta, green locally (`gradle --no-daemon test`) before the next task. End-of-block: `./scripts/smoke-backend-e2e.sh` + full test suite.
+Full plan at `~/.claude/plans/ok-antes-de-comenzar-zesty-bee.md`. Each block is one PR; each numbered atomic task below is one commit with its own test delta, green locally (`./gradlew --no-daemon test`) before the next task. End-of-block: `./scripts/smoke-backend-e2e.sh` + full test suite.
 
 Order: 0 → 1 → 2 → 3 → 4 → 4b → 5 → 6 → 6b → 6c → 8 → 7.
 
 ### Block 0 — Foundations
-- **0.1** Commit Gradle wrapper (`./gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `.properties`) pinned to 8.10.
-- **0.2** Update all call sites to `./gradlew`: `.github/workflows/backend-ci.yml`, `backend.yml`, `docs/runbook-prod-local.md`, `docs/backend-mvp-dod.md`, `scripts/smoke-backend-e2e.sh`, `CLAUDE.md`.
+- **0.1** ~~Commit Gradle wrapper~~ — already committed at 8.10.2 (pre-existing, verified `./gradlew --version`).
+- **0.2** Update all call sites to `./gradlew`: `.github/workflows/backend-ci.yml`, `docs/runbook-prod-local.md`, `docs/backend-mvp-dod.md`, `scripts/smoke-backend-e2e.sh`, `CLAUDE.md`.
 - **0.3** Consolidate duplicate `Unit` enum: keep `com.appcompras.domain.Unit`, delete `com.appcompras.recipe.Unit`, fix all imports.
 - **0.4** Translate Spanish → English in dev-facing docs: `docs/architecture.md`, `docs/backend-mvp-dod.md`, `docs/runbook-prod-local.md`, `docs/domain-model.md`, `frontend/README.md`, inline Java comments. Leave `seed/*.json` product data in Spanish.
 
@@ -173,15 +173,15 @@ Frontend dev server (proxies `/api`, `/actuator`, `/v3/api-docs`, `/swagger-ui` 
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-### Backend (Gradle — no `gradlew` wrapper committed yet; Block 0 commits one)
+### Backend (Gradle wrapper committed, pinned to 8.10.2)
 
 ```bash
 cd backend
-gradle --no-daemon test                                             # all unit/app tests (H2)
-gradle --no-daemon test --tests com.appcompras.security.ApiSecurityAuthTest   # single test
-gradle --no-daemon test --tests "com.appcompras.integration.PostgresE2EFlowTest"  # Testcontainers Postgres
-gradle --no-daemon bootRun                                          # run API on :8080
-gradle --no-daemon bootJar                                          # build jar
+./gradlew --no-daemon test                                             # all unit/app tests (H2)
+./gradlew --no-daemon test --tests com.appcompras.security.ApiSecurityAuthTest   # single test
+./gradlew --no-daemon test --tests "com.appcompras.integration.PostgresE2EFlowTest"  # Testcontainers Postgres
+./gradlew --no-daemon bootRun                                          # run API on :8080
+./gradlew --no-daemon bootJar                                          # build jar
 ```
 
 Unit tests run against H2 in PostgreSQL-compat mode (`src/test/resources/application.yml`); `integration.PostgresE2EFlowTest` spins a real Postgres via Testcontainers. CI splits these into two jobs (`backend-unit` + `backend-integration-postgres`) — keep that split in mind when adding tests.
@@ -200,7 +200,7 @@ The production build uses `base: '/shopping-app/'` (see `vite.config.js`), becau
 ### End-to-end smoke test
 
 ```bash
-./scripts/smoke-backend-e2e.sh   # requires docker, curl, jq, gradle
+./scripts/smoke-backend-e2e.sh   # requires docker, curl, jq; uses backend/gradlew
 ```
 
 Starts postgres via compose, runs `bootRun` with auth disabled on port 8088, exercises recipe → plan → shopping-list CRUD, and cleans up. Quickest way to verify backend wiring before a deploy.

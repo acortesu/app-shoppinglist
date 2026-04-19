@@ -27,9 +27,9 @@ Estado objetivo para considerar el backend del MVP listo para frontend y demo.
 ## 3) Calidad y tests
 
 - Tests backend locales en verde:
-  - `cd backend && gradle --no-daemon test`
+  - `cd backend && ./gradlew --no-daemon test`
 - Test integración Postgres real (Testcontainers) en verde:
-  - `cd backend && gradle --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
+  - `cd backend && ./gradlew --no-daemon test --tests com.appcompras.integration.PostgresE2EFlowTest`
 - Smoke script E2E local en verde:
   - `./scripts/smoke-backend-e2e.sh`
 

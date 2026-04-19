@@ -24,8 +24,8 @@ npm run dev
 
 ```bash
 cd $BACKEND
-gradle --no-daemon test
-gradle --no-daemon test --tests com.appcompras.security.ApiSecurityAuthTest
+./gradlew --no-daemon test
+./gradlew --no-daemon test --tests com.appcompras.security.ApiSecurityAuthTest
 ```
 
 ```bash
