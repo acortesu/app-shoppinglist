@@ -143,6 +143,20 @@ Gets its own plan at rewrite time. Scope: TS + Vite + React Query + React Hook F
 - **Observability**: Cloud Run native (Cloud Logging/Trace/Monitoring) for primary + CloudWatch + X-Ray for reference + one unified Grafana Cloud free-tier dashboard.
 - **Blue/green**: Cloud Run native traffic split (`--no-traffic` + gradual shift) for primary; CodeDeploy-orchestrated blue/green for reference stack.
 
+## Portfolio domain layout
+
+`https://www.acortesdev.xyz/` is an umbrella portfolio with path-based subpages — one CloudFront distribution / S3 bucket serves multiple projects side by side:
+
+- `/shopping-app/` — this repo's frontend (live).
+- `/wordle/` — separate repo (live).
+- `/` (root) — reserved for the user's personal info page (not built yet).
+
+Implications for this repo:
+- `frontend/vite.config.js` hardcodes `base: '/shopping-app/'` in prod because of this layout — preserve it in Block 7.
+- CloudFront invalidations in `frontend-deploy-shopping.yml` are scoped to `/shopping-app/*`; never invalidate `/*` (would bust sibling projects' caches).
+- S3 sync uses `--delete` but is scoped to the `/shopping-app` prefix for the same reason.
+- The app is live but has zero real users — downtime during Block 8 migration is acceptable; no zero-downtime cutover needed.
+
 ## Language policy
 
 English for all dev-facing artifacts (code, identifiers, comments, `README.md`, `CLAUDE.md`, `docs/*.md`, commit messages). Spanish is fine where it's product data for the Costa Rican user (ingredient seed labels, future UI copy).
