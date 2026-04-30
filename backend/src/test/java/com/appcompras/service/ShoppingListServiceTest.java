@@ -87,4 +87,51 @@ class ShoppingListServiceTest {
         ShoppingListItem oil = list.get(0);
         assertEquals(2, oil.suggestedPackages());
     }
+
+    @Test
+    void filtersOutToTasteIngredients() {
+        Recipe seasonedDish = new Recipe(
+                "r4",
+                "Seasoned dish",
+                MealType.DINNER,
+                List.of(
+                    new RecipeIngredient("rice", 1, Unit.CUP),
+                    new RecipeIngredient("black-pepper", 1, Unit.TO_TASTE)
+                ),
+                null,
+                null,
+                Set.of(),
+                0,
+                null,
+                Instant.now(),
+                Instant.now()
+        );
+
+        List<ShoppingListItem> list = shoppingListService.generateFromRecipes(List.of(seasonedDish));
+
+        assertEquals(1, list.size());
+        ShoppingListItem item = list.get(0);
+        assertEquals("rice", item.ingredientId());
+    }
+
+    @Test
+    void handlesZeroPackageBaseAmountGracefully() {
+        Recipe recipe = new Recipe(
+                "r5",
+                "Test recipe",
+                MealType.LUNCH,
+                List.of(new RecipeIngredient("black-pepper", 1, Unit.TO_TASTE)),
+                null,
+                null,
+                Set.of(),
+                0,
+                null,
+                Instant.now(),
+                Instant.now()
+        );
+
+        List<ShoppingListItem> list = shoppingListService.generateFromRecipes(List.of(recipe));
+
+        assertEquals(0, list.size());
+    }
 }
