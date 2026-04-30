@@ -134,4 +134,59 @@ class ShoppingListServiceTest {
 
         assertEquals(0, list.size());
     }
+
+    @Test
+    void roundsAggregatedBaseAmountsToOneDecimal() {
+        Recipe saltyDish1 = new Recipe(
+                "r6a",
+                "Salty dish 1",
+                MealType.LUNCH,
+                List.of(new RecipeIngredient("salt", 0.3, Unit.PINCH)),
+                null,
+                null,
+                Set.of(),
+                0,
+                null,
+                Instant.now(),
+                Instant.now()
+        );
+
+        Recipe saltyDish2 = new Recipe(
+                "r6b",
+                "Salty dish 2",
+                MealType.LUNCH,
+                List.of(new RecipeIngredient("salt", 0.3, Unit.PINCH)),
+                null,
+                null,
+                Set.of(),
+                0,
+                null,
+                Instant.now(),
+                Instant.now()
+        );
+
+        Recipe saltyDish3 = new Recipe(
+                "r6c",
+                "Salty dish 3",
+                MealType.LUNCH,
+                List.of(new RecipeIngredient("salt", 0.3, Unit.PINCH)),
+                null,
+                null,
+                Set.of(),
+                0,
+                null,
+                Instant.now(),
+                Instant.now()
+        );
+
+        List<ShoppingListItem> list = shoppingListService.generateFromRecipes(
+            List.of(saltyDish1, saltyDish2, saltyDish3)
+        );
+
+        assertEquals(1, list.size());
+        ShoppingListItem salt = list.get(0);
+        assertEquals("salt", salt.ingredientId());
+        double requiredAmount = salt.requiredBaseAmount();
+        assertEquals(0.3, requiredAmount, 0.001);
+    }
 }

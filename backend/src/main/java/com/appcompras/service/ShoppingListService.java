@@ -44,7 +44,7 @@ public class ShoppingListService {
             IngredientCatalogItem catalogItem = catalogService.findById(entry.getKey())
                     .orElseThrow(() -> new IllegalArgumentException("Unknown ingredient: " + entry.getKey()));
 
-            double requiredBaseAmount = entry.getValue();
+            double requiredBaseAmount = Math.round(entry.getValue() * 10.0) / 10.0;
             double packageBaseAmount = conversionService.packageBaseAmount(
                     catalogItem.measurementType(),
                     catalogItem.suggestedPurchaseAmount(),
