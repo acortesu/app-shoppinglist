@@ -48,6 +48,55 @@ public class UnitConversionService {
         };
     }
 
+    public double packageBaseAmount(MeasurementType type, double amount, Unit unit) {
+        validatePackageUnit(type, unit);
+        return switch (type) {
+            case WEIGHT -> convertWeightPackageToGrams(amount, unit);
+            case VOLUME -> convertVolumePackageToMilliliters(amount, unit);
+            case UNIT -> amount;
+            case TO_TASTE -> 0.0;
+        };
+    }
+
+    private void validatePackageUnit(MeasurementType type, Unit unit) {
+        switch (type) {
+            case WEIGHT -> {
+                if (unit != Unit.GRAM && unit != Unit.KILOGRAM) {
+                    throw new IllegalArgumentException("Package unit for WEIGHT must be GRAM or KILOGRAM, got: " + unit);
+                }
+            }
+            case VOLUME -> {
+                if (unit != Unit.MILLILITER && unit != Unit.LITER) {
+                    throw new IllegalArgumentException("Package unit for VOLUME must be MILLILITER or LITER, got: " + unit);
+                }
+            }
+            case UNIT -> {
+                if (unit != Unit.PIECE) {
+                    throw new IllegalArgumentException("Package unit for UNIT must be PIECE, got: " + unit);
+                }
+            }
+            case TO_TASTE -> {
+                // TO_TASTE packages always yield 0
+            }
+        }
+    }
+
+    private double convertWeightPackageToGrams(double amount, Unit unit) {
+        return switch (unit) {
+            case GRAM -> amount;
+            case KILOGRAM -> amount * 1000.0;
+            default -> throw new IllegalArgumentException("Unsupported package WEIGHT unit: " + unit);
+        };
+    }
+
+    private double convertVolumePackageToMilliliters(double amount, Unit unit) {
+        return switch (unit) {
+            case MILLILITER -> amount;
+            case LITER -> amount * 1000.0;
+            default -> throw new IllegalArgumentException("Unsupported package VOLUME unit: " + unit);
+        };
+    }
+
     private double convertWeightToGrams(IngredientCatalogItem item, double quantity, Unit unit) {
         return switch (unit) {
             case GRAM -> quantity;
