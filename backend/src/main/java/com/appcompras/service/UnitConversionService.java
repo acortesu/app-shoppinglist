@@ -12,11 +12,6 @@ public class UnitConversionService {
 
     private final IngredientCatalogService catalogService;
 
-    private final Map<String, Map<Unit, Double>> ingredientSpecificToBaseFactors = Map.of(
-            "rice", Map.of(Unit.CUP, 180.0),
-            "salt", Map.of(Unit.PINCH, 0.3)
-    );
-
     public UnitConversionService(IngredientCatalogService catalogService) {
         this.catalogService = catalogService;
     }
@@ -34,7 +29,7 @@ public class UnitConversionService {
         }
 
         return switch (item.measurementType()) {
-            case WEIGHT -> convertWeightToGrams(ingredientId, quantity, unit);
+            case WEIGHT -> convertWeightToGrams(item, quantity, unit);
             case VOLUME -> convertVolumeToMilliliters(quantity, unit);
             case UNIT -> convertUnits(quantity, unit);
             case TO_TASTE -> 0.0;
@@ -53,11 +48,11 @@ public class UnitConversionService {
         };
     }
 
-    private double convertWeightToGrams(String ingredientId, double quantity, Unit unit) {
+    private double convertWeightToGrams(IngredientCatalogItem item, double quantity, Unit unit) {
         return switch (unit) {
             case GRAM -> quantity;
             case KILOGRAM -> quantity * 1000.0;
-            case CUP, TABLESPOON, TEASPOON, PINCH -> fromSpecificRule(ingredientId, unit, quantity);
+            case CUP, TABLESPOON, TEASPOON, PINCH -> fromSpecificRule(item, unit, quantity);
             default -> throw new IllegalArgumentException("Unsupported WEIGHT unit: " + unit);
         };
     }
@@ -80,11 +75,11 @@ public class UnitConversionService {
         return quantity;
     }
 
-    private double fromSpecificRule(String ingredientId, Unit unit, double quantity) {
-        Map<Unit, Double> rules = ingredientSpecificToBaseFactors.get(ingredientId);
+    private double fromSpecificRule(IngredientCatalogItem item, Unit unit, double quantity) {
+        Map<Unit, Double> rules = item.densityRules();
         if (rules == null || !rules.containsKey(unit)) {
             throw new IllegalArgumentException(
-                    "Missing ingredient specific conversion for ingredient " + ingredientId + " and unit " + unit);
+                    "Missing ingredient specific conversion for ingredient " + item.ingredientId() + " and unit " + unit);
         }
         return quantity * rules.get(unit);
     }
