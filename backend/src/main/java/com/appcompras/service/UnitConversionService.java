@@ -12,11 +12,6 @@ public class UnitConversionService {
 
     private final IngredientCatalogService catalogService;
 
-    private final Map<String, Map<Unit, Double>> ingredientSpecificToBaseFactors = Map.of(
-            "rice", Map.of(Unit.CUP, 180.0),
-            "salt", Map.of(Unit.PINCH, 0.3)
-    );
-
     public UnitConversionService(IngredientCatalogService catalogService) {
         this.catalogService = catalogService;
     }
@@ -34,7 +29,7 @@ public class UnitConversionService {
         }
 
         return switch (item.measurementType()) {
-            case WEIGHT -> convertWeightToGrams(ingredientId, quantity, unit);
+            case WEIGHT -> convertWeightToGrams(item, quantity, unit);
             case VOLUME -> convertVolumeToMilliliters(quantity, unit);
             case UNIT -> convertUnits(quantity, unit);
             case TO_TASTE -> 0.0;
@@ -53,11 +48,60 @@ public class UnitConversionService {
         };
     }
 
-    private double convertWeightToGrams(String ingredientId, double quantity, Unit unit) {
+    public double packageBaseAmount(MeasurementType type, double amount, Unit unit) {
+        validatePackageUnit(type, unit);
+        return switch (type) {
+            case WEIGHT -> convertWeightPackageToGrams(amount, unit);
+            case VOLUME -> convertVolumePackageToMilliliters(amount, unit);
+            case UNIT -> amount;
+            case TO_TASTE -> 0.0;
+        };
+    }
+
+    private void validatePackageUnit(MeasurementType type, Unit unit) {
+        switch (type) {
+            case WEIGHT -> {
+                if (unit != Unit.GRAM && unit != Unit.KILOGRAM) {
+                    throw new IllegalArgumentException("Package unit for WEIGHT must be GRAM or KILOGRAM, got: " + unit);
+                }
+            }
+            case VOLUME -> {
+                if (unit != Unit.MILLILITER && unit != Unit.LITER) {
+                    throw new IllegalArgumentException("Package unit for VOLUME must be MILLILITER or LITER, got: " + unit);
+                }
+            }
+            case UNIT -> {
+                if (unit != Unit.PIECE) {
+                    throw new IllegalArgumentException("Package unit for UNIT must be PIECE, got: " + unit);
+                }
+            }
+            case TO_TASTE -> {
+                // TO_TASTE packages always yield 0
+            }
+        }
+    }
+
+    private double convertWeightPackageToGrams(double amount, Unit unit) {
+        return switch (unit) {
+            case GRAM -> amount;
+            case KILOGRAM -> amount * 1000.0;
+            default -> throw new IllegalArgumentException("Unsupported package WEIGHT unit: " + unit);
+        };
+    }
+
+    private double convertVolumePackageToMilliliters(double amount, Unit unit) {
+        return switch (unit) {
+            case MILLILITER -> amount;
+            case LITER -> amount * 1000.0;
+            default -> throw new IllegalArgumentException("Unsupported package VOLUME unit: " + unit);
+        };
+    }
+
+    private double convertWeightToGrams(IngredientCatalogItem item, double quantity, Unit unit) {
         return switch (unit) {
             case GRAM -> quantity;
             case KILOGRAM -> quantity * 1000.0;
-            case CUP, TABLESPOON, TEASPOON, PINCH -> fromSpecificRule(ingredientId, unit, quantity);
+            case CUP, TABLESPOON, TEASPOON, PINCH -> fromSpecificRule(item, unit, quantity);
             default -> throw new IllegalArgumentException("Unsupported WEIGHT unit: " + unit);
         };
     }
@@ -80,11 +124,11 @@ public class UnitConversionService {
         return quantity;
     }
 
-    private double fromSpecificRule(String ingredientId, Unit unit, double quantity) {
-        Map<Unit, Double> rules = ingredientSpecificToBaseFactors.get(ingredientId);
+    private double fromSpecificRule(IngredientCatalogItem item, Unit unit, double quantity) {
+        Map<Unit, Double> rules = item.densityRules();
         if (rules == null || !rules.containsKey(unit)) {
             throw new IllegalArgumentException(
-                    "Missing ingredient specific conversion for ingredient " + ingredientId + " and unit " + unit);
+                    "Missing ingredient specific conversion for ingredient " + item.ingredientId() + " and unit " + unit);
         }
         return quantity * rules.get(unit);
     }
