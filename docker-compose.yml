@@ -1,3 +1,6 @@
+# Local dev always uses Docker Postgres.
+# Production uses Supabase (managed Postgres, free tier) — see docs/runbook-prod-local.md
+
 services:
   postgres:
     image: postgres:16-alpine

@@ -18,9 +18,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -256,7 +258,8 @@ public class IngredientCatalogService {
                     MeasurementType.WEIGHT,
                     Set.of(Unit.GRAM, Unit.KILOGRAM),
                     1.0,
-                    Unit.KILOGRAM
+                    Unit.KILOGRAM,
+                    Map.of()
             );
             case VOLUME -> new IngredientCatalogItem(
                     id,
@@ -264,7 +267,8 @@ public class IngredientCatalogService {
                     MeasurementType.VOLUME,
                     Set.of(Unit.MILLILITER, Unit.LITER, Unit.CUP, Unit.TABLESPOON, Unit.TEASPOON),
                     1.0,
-                    Unit.LITER
+                    Unit.LITER,
+                    Map.of()
             );
             case UNIT -> new IngredientCatalogItem(
                     id,
@@ -272,7 +276,8 @@ public class IngredientCatalogService {
                     MeasurementType.UNIT,
                     Set.of(Unit.PIECE),
                     1.0,
-                    Unit.PIECE
+                    Unit.PIECE,
+                    Map.of()
             );
             case TO_TASTE -> new IngredientCatalogItem(
                     id,
@@ -280,7 +285,8 @@ public class IngredientCatalogService {
                     MeasurementType.TO_TASTE,
                     Set.of(Unit.PINCH, Unit.TO_TASTE),
                     0.0,
-                    Unit.TO_TASTE
+                    Unit.TO_TASTE,
+                    Map.of()
             );
         };
     }
@@ -323,13 +329,24 @@ public class IngredientCatalogService {
             allowedUnits.add(Unit.valueOf(unitNode.asText()));
         }
 
+        Map<Unit, Double> densityRules = new EnumMap<>(Unit.class);
+        JsonNode densityRulesNode = node.path("densityRules");
+        if (densityRulesNode.isObject()) {
+            densityRulesNode.fields().forEachRemaining(entry -> {
+                Unit unit = Unit.valueOf(entry.getKey());
+                double factor = entry.getValue().asDouble();
+                densityRules.put(unit, factor);
+            });
+        }
+
         IngredientCatalogItem item = new IngredientCatalogItem(
                 id,
                 displayName,
                 measurementType,
                 Set.copyOf(allowedUnits),
                 suggestedPurchaseAmount,
-                suggestedPurchaseUnit
+                suggestedPurchaseUnit,
+                densityRules
         );
 
         seedCatalog.put(id, item);

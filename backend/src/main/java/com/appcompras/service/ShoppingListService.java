@@ -1,11 +1,9 @@
 package com.appcompras.service;
 
 import com.appcompras.domain.IngredientCatalogItem;
-import com.appcompras.domain.MeasurementType;
 import com.appcompras.domain.Recipe;
 import com.appcompras.domain.RecipeIngredient;
 import com.appcompras.domain.ShoppingListItem;
-import com.appcompras.domain.Unit;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -46,13 +44,13 @@ public class ShoppingListService {
             IngredientCatalogItem catalogItem = catalogService.findById(entry.getKey())
                     .orElseThrow(() -> new IllegalArgumentException("Unknown ingredient: " + entry.getKey()));
 
-            double requiredBaseAmount = entry.getValue();
-            double packageBaseAmount = toBaseForPackage(
+            double requiredBaseAmount = Math.round(entry.getValue() * 10.0) / 10.0;
+            double packageBaseAmount = conversionService.packageBaseAmount(
                     catalogItem.measurementType(),
                     catalogItem.suggestedPurchaseAmount(),
                     catalogItem.suggestedPurchaseUnit());
 
-            int suggestedPackages = (int) Math.ceil(requiredBaseAmount / packageBaseAmount);
+            int suggestedPackages = packageBaseAmount > 0 ? (int) Math.ceil(requiredBaseAmount / packageBaseAmount) : 0;
 
             result.add(new ShoppingListItem(
                     catalogItem.ingredientId(),
@@ -66,27 +64,5 @@ public class ShoppingListService {
         }
 
         return result;
-    }
-
-    private double toBaseForPackage(MeasurementType type, double amount, Unit unit) {
-        return switch (type) {
-            case WEIGHT -> switch (unit) {
-                case GRAM -> amount;
-                case KILOGRAM -> amount * 1000.0;
-                default -> throw new IllegalArgumentException("Invalid package unit for WEIGHT: " + unit);
-            };
-            case VOLUME -> switch (unit) {
-                case MILLILITER -> amount;
-                case LITER -> amount * 1000.0;
-                default -> throw new IllegalArgumentException("Invalid package unit for VOLUME: " + unit);
-            };
-            case UNIT -> {
-                if (unit != Unit.PIECE) {
-                    throw new IllegalArgumentException("Invalid package unit for UNIT: " + unit);
-                }
-                yield amount;
-            }
-            case TO_TASTE -> 0.0;
-        };
     }
 }

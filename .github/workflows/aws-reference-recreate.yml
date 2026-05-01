@@ -1,0 +1,127 @@
+name: AWS Reference Stack - Recreate
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Backend image tag (e.g., 20240430-2245-abc123f)"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  TF_DIR: infra/envs/aws-reference/runtime
+  ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_REPO: appcompras-backend-aws-reference
+
+jobs:
+  recreate:
+    runs-on: ubuntu-latest
+    environment:
+      name: aws-reference-recreate
+
+    outputs:
+      alb_url: ${{ steps.terraform.outputs.alb_dns_name }}
+      elapsed_time: ${{ steps.elapsed.outputs.time }}
+
+    steps:
+      - name: Start timer
+        id: start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          terraform plan -out=tfplan -var="backend_image_tag=${{ github.event.inputs.image_tag }}"
+
+      - name: Terraform Apply
+        id: terraform
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          terraform apply -auto-approve tfplan
+          ALB_URL=$(terraform output -raw alb_dns_name)
+          echo "alb_dns_name=$ALB_URL" >> $GITHUB_OUTPUT
+
+      - name: Wait for ALB health check
+        run: |
+          ALB_URL="${{ steps.terraform.outputs.alb_dns_name }}"
+          echo "Waiting for ALB to become healthy: $ALB_URL"
+
+          max_retries=30
+          for i in $(seq 1 $max_retries); do
+            health_status=$(aws elbv2 describe-target-health \
+              --target-group-arn $(aws elbv2 describe-target-groups --region ${{ env.AWS_REGION }} --query 'TargetGroups[0].TargetGroupArn' --output text) \
+              --region ${{ env.AWS_REGION }} \
+              --query 'TargetHealthDescriptions[0].TargetHealth.State' \
+              --output text 2>/dev/null || echo "unknown")
+
+            if [ "$health_status" = "healthy" ]; then
+              echo "✓ ALB target is healthy (attempt $i/$max_retries)"
+              break
+            fi
+            echo "ALB health check attempt $i/$max_retries: $health_status"
+            sleep 10
+          done
+
+      - name: Health check via API
+        run: |
+          ALB_URL="${{ steps.terraform.outputs.alb_dns_name }}"
+          API_URL="http://$ALB_URL/actuator/health"
+          echo "Checking API health: $API_URL"
+
+          max_retries=15
+          for i in $(seq 1 $max_retries); do
+            response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" || echo "000")
+            if [ "$response" = "200" ]; then
+              echo "✓ API health check passed (attempt $i/$max_retries)"
+              exit 0
+            fi
+            echo "Health check attempt $i/$max_retries: got $response, retrying..."
+            sleep 10
+          done
+
+          echo "✗ API health check failed after $max_retries attempts"
+          exit 1
+
+      - name: Calculate elapsed time
+        id: elapsed
+        run: |
+          START_TIME=$(echo "${{ steps.start.outputs.start_time }}")
+          END_TIME=$(date +%s)
+          ELAPSED=$((END_TIME - START_TIME))
+          ELAPSED_MIN=$((ELAPSED / 60))
+          ELAPSED_SEC=$((ELAPSED % 60))
+          echo "time=${ELAPSED_MIN}m ${ELAPSED_SEC}s" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "✅ AWS reference stack recreated successfully"
+          echo ""
+          echo "📊 Details:"
+          echo "  API Base: http://${{ steps.terraform.outputs.alb_dns_name }}"
+          echo "  Health check: http://${{ steps.terraform.outputs.alb_dns_name }}/actuator/health"
+          echo "  Image tag: ${{ github.event.inputs.image_tag }}"
+          echo "  Elapsed time: ${{ steps.elapsed.outputs.time }}"

@@ -6,8 +6,13 @@
 export ROOT=/Users/alo/Documents/Code/appCompras/appCompras
 export BACKEND=$ROOT/backend
 export FRONTEND=$ROOT/frontend
-export TF_PROD=$ROOT/infra/envs/prod/runtime
+export TF_GCP=$ROOT/infra/envs/prod/gcp
+export TF_AWS_REF=$ROOT/infra/envs/aws-reference/runtime
 ```
+
+**Note:** Post-Block 8, prod infra split into:
+- `TF_GCP` — Cloud Run + Artifact Registry (primary, always-on)
+- `TF_AWS_REF` — ECS + ALB (reference stack, destroy-by-default)
 
 ## Local dev
 
@@ -33,7 +38,79 @@ cd $ROOT
 ./scripts/dev-down.sh
 ```
 
-## Deploy backend to prod (ECS + Terraform)
+## CORS configuration
+
+CORS (Cross-Origin Resource Sharing) is controlled via the `APP_CORS_ALLOWED_ORIGINS` environment variable, which accepts a comma-separated list of allowed origins. Only origins in this list are permitted to make cross-origin requests to the API.
+
+### Local dev
+
+For local frontend dev (Vite on port 5173), set:
+
+```bash
+export APP_CORS_ALLOWED_ORIGINS="http://localhost:5173"
+```
+
+### Production
+
+For the deployed frontend at `https://www.acortesdev.xyz/shopping-app/`, set:
+
+```bash
+export APP_CORS_ALLOWED_ORIGINS="https://www.acortesdev.xyz"
+```
+
+### CORS behavior
+
+- **Allowed origin**: Preflight `OPTIONS` request returns `200 OK` with `Access-Control-Allow-Origin` header.
+- **Rejected origin** (e.g., `https://evil.example.com`): Preflight returns `403 Forbidden`.
+- **No origin header**: Request is allowed (used by same-origin requests and some clients).
+
+Test a preflight request:
+
+```bash
+curl -i -X OPTIONS "https://api.acortesdev.xyz/api/recipes" \
+  -H "Origin: https://www.acortesdev.xyz" \
+  -H "Access-Control-Request-Method: POST"
+```
+
+## Supabase (prod database)
+
+### Connection strings (post-Block 8)
+
+**Local dev**: Uses Docker Postgres 16 via `docker-compose.yml` — Supabase not required.
+
+**Prod**: PostgreSQL hosted on Supabase (free tier, `appcompras-prod` project).
+
+Connection details:
+- **Host**: `db.<project-ref>.supabase.co`
+- **Port**: `6543` (transaction pooler, required for Cloud Run)
+- **Database**: `postgres`
+- **Username**: `postgres`
+- **Password**: Stored in GCP Secret Manager (`appcompras-supabase-url`)
+
+### Verify Flyway migration (local + Supabase DSN)
+
+After creating a Supabase project, verify that Flyway migrations apply cleanly:
+
+```bash
+DB_URL="jdbc:postgresql://db.<PROJECT_REF>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require&prepareThreshold=0" \
+  DB_USERNAME="postgres" \
+  DB_PASSWORD="<SUPABASE_PASSWORD>" \
+  cd $BACKEND && ./gradlew --no-daemon bootRun
+```
+
+Expected output:
+- Flyway applies `V1__init.sql` through `V7__add_idempotency_key_constraint.sql`
+- Spring Boot starts without `spring.jpa.hibernate.ddl-auto=validate` errors
+- Log: `Acquired DB lock, starting migration...` followed by version list
+
+### JDBC URL parameters
+
+- `pgbouncer=true` — Use transaction pooler (port 6543); required for JPA `SET` commands
+- `sslmode=require` — Enforce SSL (Supabase enforces this)
+- `prepareThreshold=0` — Disable server-side prepared statements; PgBouncer transaction mode doesn't persist them across connections (required for Flyway)
+- Do NOT append `search_path` — Supabase defaults to `public` schema
+
+## Deploy backend to prod (Cloud Run + Terraform)
 
 ### 1) Variables
 

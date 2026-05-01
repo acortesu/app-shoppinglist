@@ -1,0 +1,60 @@
+name: AWS Reference Stack - Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type 'destroy' to confirm"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  TF_DIR: infra/envs/aws-reference/runtime
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment:
+      name: aws-reference-destroy
+
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "destroy" ]; then
+            echo "❌ Confirmation failed. You must type 'destroy' to proceed."
+            exit 1
+          fi
+          echo "✓ Destruction confirmed"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          terraform destroy -auto-approve
+          echo "✓ AWS reference stack destroyed"
+
+      - name: Confirmation
+        run: |
+          echo "🗑️  AWS reference stack has been destroyed"
+          echo "To recreate: use aws-reference-recreate.yml workflow"

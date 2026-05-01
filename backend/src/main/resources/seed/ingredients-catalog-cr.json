@@ -8,6 +8,9 @@
       "allowedUnits": ["GRAM", "KILOGRAM", "CUP"],
       "suggestedPurchaseAmount": 1.0,
       "suggestedPurchaseUnit": "KILOGRAM",
+      "densityRules": {
+        "CUP": 180.0
+      },
       "aliases": [
         "arroz",
         "arroz blanco",
@@ -196,9 +199,14 @@
       "id": "butter",
       "displayName": "Butter",
       "measurementType": "WEIGHT",
-      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP", "TABLESPOON", "TEASPOON"],
       "suggestedPurchaseAmount": 250.0,
       "suggestedPurchaseUnit": "GRAM",
+      "densityRules": {
+        "CUP": 227.0,
+        "TABLESPOON": 14.2,
+        "TEASPOON": 4.7
+      },
       "aliases": [
         "mantequilla",
         "mantequilla con sal",
@@ -217,6 +225,9 @@
       "allowedUnits": ["GRAM", "KILOGRAM", "PINCH", "TO_TASTE"],
       "suggestedPurchaseAmount": 500.0,
       "suggestedPurchaseUnit": "GRAM",
+      "densityRules": {
+        "PINCH": 0.3
+      },
       "aliases": [
         "sal",
         "sal fina",
@@ -224,6 +235,25 @@
         "sal marina",
         "sal himalaya",
         "sal kosher"
+      ]
+    },
+    {
+      "id": "honey",
+      "displayName": "Honey",
+      "measurementType": "WEIGHT",
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP", "TABLESPOON", "TEASPOON"],
+      "suggestedPurchaseAmount": 500.0,
+      "suggestedPurchaseUnit": "GRAM",
+      "densityRules": {
+        "CUP": 340.0,
+        "TABLESPOON": 21.25,
+        "TEASPOON": 7.0
+      },
+      "aliases": [
+        "miel",
+        "miel de abeja",
+        "miel pura",
+        "miel sin procesar"
       ]
     },
     {
@@ -457,9 +487,14 @@
       "id": "sugar",
       "displayName": "Sugar",
       "measurementType": "WEIGHT",
-      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP", "TABLESPOON", "TEASPOON"],
       "suggestedPurchaseAmount": 1.0,
       "suggestedPurchaseUnit": "KILOGRAM",
+      "densityRules": {
+        "CUP": 200.0,
+        "TABLESPOON": 12.5,
+        "TEASPOON": 4.0
+      },
       "aliases": [
         "azucar",
         "azucar blanca",
@@ -471,9 +506,14 @@
       "id": "brown-sugar",
       "displayName": "Brown Sugar",
       "measurementType": "WEIGHT",
-      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP", "TABLESPOON", "TEASPOON"],
       "suggestedPurchaseAmount": 500.0,
       "suggestedPurchaseUnit": "GRAM",
+      "densityRules": {
+        "CUP": 220.0,
+        "TABLESPOON": 13.75,
+        "TEASPOON": 4.5
+      },
       "aliases": [
         "azucar morena",
         "azucar negra",
@@ -485,9 +525,14 @@
       "id": "corn-flour",
       "displayName": "Corn Flour",
       "measurementType": "WEIGHT",
-      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP", "TABLESPOON", "TEASPOON"],
       "suggestedPurchaseAmount": 1.0,
       "suggestedPurchaseUnit": "KILOGRAM",
+      "densityRules": {
+        "CUP": 160.0,
+        "TABLESPOON": 10.0,
+        "TEASPOON": 3.3
+      },
       "aliases": [
         "harina de maiz",
         "masa de maiz",
@@ -499,9 +544,14 @@
       "id": "wheat-flour",
       "displayName": "Wheat Flour",
       "measurementType": "WEIGHT",
-      "allowedUnits": ["GRAM", "KILOGRAM"],
+      "allowedUnits": ["GRAM", "KILOGRAM", "CUP", "TABLESPOON", "TEASPOON"],
       "suggestedPurchaseAmount": 1.0,
       "suggestedPurchaseUnit": "KILOGRAM",
+      "densityRules": {
+        "CUP": 125.0,
+        "TABLESPOON": 8.0,
+        "TEASPOON": 2.7
+      },
       "aliases": [
         "harina de trigo",
         "harina blanca",

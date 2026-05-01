@@ -15,10 +15,6 @@ variable "public_subnet_cidrs" {
   type = list(string)
 }
 
-variable "private_subnet_cidrs" {
-  type = list(string)
-}
-
 # Backend (ECS)
 variable "container_port" { type = number }
 variable "desired_count" { type = number }
@@ -41,38 +37,15 @@ variable "cors_allowed_origins" {
 # Domain
 variable "api_domain_name" { type = string } # api.acortesdev.xyz
 
-# DB
-variable "db_name" { type = string }
-
-variable "db_username" {
-  type      = string
-  sensitive = true
-}
-
-variable "db_instance_class" { type = string }
-variable "db_allocated_storage_gb" { type = number }
-
-# Snapshot strategy (Opción C)
-variable "snapshot_id_parameter_name" { type = string } # /appcompras/prod/db/latestSnapshotId
-variable "restore_from_snapshot" {
-  type    = bool
-  default = false
-}
-
-# Si restore_from_snapshot=true, este valor se puede setear (temporalmente) o lo leeremos de SSM luego
-variable "snapshot_identifier" {
-  type    = string
-  default = ""
+# DB (populated via AWS Secrets Manager, not generated)
+variable "db_name" {
+  type = string
+  default = "appcompras"
 }
 
 variable "backend_image_tag" {
   type    = string
   default = "latest"
-}
-
-variable "db_password_length" {
-  type    = number
-  default = 24
 }
 
 variable "api_domain" {

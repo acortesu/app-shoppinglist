@@ -13,8 +13,10 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.empty;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,6 +62,49 @@ class OwnershipIsolationTest {
         mockMvc.perform(get("/api/shopping-lists").with(jwt().jwt(builder -> builder.subject(USER_B))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", empty()));
+    }
+
+    @Test
+    void userBCannotDeleteRecipeOfUserA() throws Exception {
+        String recipeId = createRecipeAs(USER_A);
+
+        mockMvc.perform(delete("/api/recipes/{id}", recipeId).with(jwt().jwt(builder -> builder.subject(USER_B))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void userBCannotUpdatePlanOfUserA() throws Exception {
+        String recipeId = createRecipeAs(USER_A);
+        String planId = createPlanAs(USER_A, recipeId);
+
+        mockMvc.perform(put("/api/plans/{id}", planId)
+                        .with(jwt().jwt(builder -> builder.subject(USER_B)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startDate": "2026-02-16",
+                                  "period": "WEEK",
+                                  "slots": []
+                                }
+                                """))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void userBCannotUpdateShoppingListOfUserA() throws Exception {
+        String recipeId = createRecipeAs(USER_A);
+        String planId = createPlanAs(USER_A, recipeId);
+        String shoppingListId = generateShoppingListAs(USER_A, planId);
+
+        mockMvc.perform(put("/api/shopping-lists/{id}", shoppingListId)
+                        .with(jwt().jwt(builder -> builder.subject(USER_B)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "items": []
+                                }
+                                """))
+                .andExpect(status().isNotFound());
     }
 
     private String createRecipeAs(String userId) throws Exception {

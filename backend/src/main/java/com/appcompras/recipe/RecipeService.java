@@ -1,5 +1,6 @@
 package com.appcompras.recipe;
 
+import com.appcompras.config.ApiErrorCode;
 import com.appcompras.config.BusinessRuleException;
 import com.appcompras.security.CurrentUserProvider;
 import com.appcompras.service.IngredientCatalogService;
@@ -131,13 +132,13 @@ public class RecipeService {
     private RecipeIngredient toValidatedIngredient(CreateRecipeRequest.IngredientInput input) {
         String canonicalIngredientId = ingredientCatalogService.resolveIngredientId(input.ingredientId())
                 .orElseThrow(() -> new BusinessRuleException(
-                        "INGREDIENT_NOT_FOUND",
+                        ApiErrorCode.INGREDIENT_NOT_FOUND,
                         "Unknown ingredient: " + input.ingredientId() + ". Use /api/ingredients to discover options or create custom."
                 ));
 
         if (!ingredientCatalogService.isUnitAllowed(canonicalIngredientId, input.unit())) {
             throw new BusinessRuleException(
-                    "INVALID_INGREDIENT_UNIT",
+                    ApiErrorCode.INVALID_INGREDIENT_UNIT,
                     "Unit " + input.unit() + " is not allowed for ingredient " + canonicalIngredientId
             );
         }

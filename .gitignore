@@ -12,6 +12,7 @@ __pycache__/
 # Backend build
 backend/.gradle/
 backend/build/
+backend/bin/
 .gradle-user-home/
 .env
 
