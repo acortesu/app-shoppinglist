@@ -158,6 +158,7 @@ resource "aws_security_group" "ecs" {
 resource "aws_ecr_repository" "backend" {
   name                 = "${var.project}-backend-${var.env}"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
