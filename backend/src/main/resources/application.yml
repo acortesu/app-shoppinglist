@@ -12,6 +12,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    connect-retries: 3
 
 app:
   cors:

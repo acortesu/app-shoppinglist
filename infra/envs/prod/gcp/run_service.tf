@@ -92,9 +92,7 @@ resource "google_cloud_run_v2_service" "backend" {
     }
 
     # Performance optimizations
-    timeout          = "3600s"
-    startup_cpu_boost = true
-    service_account = google_service_account.deploy.email
+    timeout = "3600s"
   }
 
   # Allow unauthenticated invocations (frontend will call this)
@@ -114,8 +112,19 @@ resource "google_cloud_run_service_iam_member" "public_invocation" {
 }
 
 # Domain mapping for api.acortesdev.xyz
-resource "google_cloud_run_domain_mapping" "backend" {
-  name     = "api.acortesdev.xyz"
-  location = var.region
-  service_name = google_cloud_run_v2_service.backend.name
-}
+# Note: Requires domain ownership verification via Google Webmaster Central
+# To enable: go to https://www.google.com/webmasters/verification/verification?domain=acortesdev.xyz
+# and verify ownership of acortesdev.xyz, then uncomment below
+#
+# resource "google_cloud_run_domain_mapping" "backend" {
+#   name     = "api.acortesdev.xyz"
+#   location = var.region
+#
+#   metadata {
+#     namespace = var.project_id
+#   }
+#
+#   spec {
+#     route_name = google_cloud_run_v2_service.backend.name
+#   }
+# }

@@ -92,7 +92,7 @@ Connection details:
 After creating a Supabase project, verify that Flyway migrations apply cleanly:
 
 ```bash
-DB_URL="jdbc:postgresql://db.<PROJECT_REF>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require" \
+DB_URL="jdbc:postgresql://db.<PROJECT_REF>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require&prepareThreshold=0" \
   DB_USERNAME="postgres" \
   DB_PASSWORD="<SUPABASE_PASSWORD>" \
   cd $BACKEND && ./gradlew --no-daemon bootRun
@@ -107,6 +107,7 @@ Expected output:
 
 - `pgbouncer=true` — Use transaction pooler (port 6543); required for JPA `SET` commands
 - `sslmode=require` — Enforce SSL (Supabase enforces this)
+- `prepareThreshold=0` — Disable server-side prepared statements; PgBouncer transaction mode doesn't persist them across connections (required for Flyway)
 - Do NOT append `search_path` — Supabase defaults to `public` schema
 
 ## Deploy backend to prod (Cloud Run + Terraform)

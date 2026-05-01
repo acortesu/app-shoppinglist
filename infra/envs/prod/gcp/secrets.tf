@@ -2,6 +2,14 @@
 resource "google_secret_manager_secret" "supabase_url" {
   secret_id = "appcompras-supabase-url"
 
+  replication {
+    user_managed {
+      replicas {
+        location = "us-east1"
+      }
+    }
+  }
+
   labels = {
     app    = "appcompras"
     secret = "supabase-dsn"
@@ -13,6 +21,14 @@ resource "google_secret_manager_secret" "supabase_url" {
 # Google Client ID for OAuth2
 resource "google_secret_manager_secret" "google_client_id" {
   secret_id = "appcompras-google-client-id"
+
+  replication {
+    user_managed {
+      replicas {
+        location = "us-east1"
+      }
+    }
+  }
 
   labels = {
     app    = "appcompras"

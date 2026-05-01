@@ -269,8 +269,10 @@ Supabase provides a managed Postgres instance with optional transaction pooler (
 
 Connection string format (Cloud Run + Supabase Transaction Pooler):
 ```
-jdbc:postgresql://db.<project-ref>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require
+jdbc:postgresql://db.<project-ref>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require&prepareThreshold=0
 ```
+
+**Important:** `prepareThreshold=0` disables server-side prepared statements (Flyway + PgBouncer incompatibility workaround — transaction pooler doesn't persist prepared statements between connections).
 
 Credentials:
 - Username: `postgres` (default Supabase user)
