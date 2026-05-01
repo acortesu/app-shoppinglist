@@ -59,22 +59,6 @@ resource "aws_subnet" "public" {
 }
 
 ############################
-# Private Subnets
-############################
-
-resource "aws_subnet" "private" {
-  count = length(var.private_subnet_cidrs)
-
-  vpc_id            = aws_vpc.this.id
-  cidr_block        = var.private_subnet_cidrs[count.index]
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-private-${count.index + 1}"
-  })
-}
-
-############################
 # Public Route Table
 ############################
 
@@ -98,26 +82,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-############################
-# Private Route Table
-############################
-
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.this.id
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-private-rt"
-  })
-}
-
-resource "aws_route_table_association" "private" {
-  count = length(aws_subnet.private)
-
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
-}
-
-# - Security Groups (ALB, ECS, RDS)
+# - Security Groups (ALB, ECS)
 ############################
 # Security Groups
 ############################
@@ -182,33 +147,6 @@ resource "aws_security_group" "ecs" {
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-ecs-sg"
-  })
-}
-
-# RDS SG: solo acepta 5432 desde ECS
-resource "aws_security_group" "rds" {
-  name        = "${local.name_prefix}-rds-sg"
-  description = "RDS security group"
-  vpc_id      = aws_vpc.this.id
-
-  ingress {
-    description     = "Postgres from ECS"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-rds-sg"
   })
 }
 
@@ -435,19 +373,22 @@ resource "aws_ecs_task_definition" "backend" {
       environment = [
         { name = "APP_SECURITY_REQUIRE_AUTH", value = tostring(var.app_security_require_auth) },
         { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
-        { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.this.address}:5432/${var.db_name}" },
         { name = "APP_CORS_ALLOWED_ORIGINS", value = join(",", var.cors_allowed_origins) },
         { name = "CORS_ALLOWED_ORIGINS", value = join(",", var.cors_allowed_origins) }
       ]
 
       secrets = [
         {
+          name      = "SPRING_DATASOURCE_URL"
+          valueFrom = "${aws_secretsmanager_secret.db.arn}:spring_datasource_url::"
+        },
+        {
           name      = "SPRING_DATASOURCE_USERNAME"
-          valueFrom = "${aws_secretsmanager_secret.db.arn}:username::"
+          valueFrom = "${aws_secretsmanager_secret.db.arn}:spring_datasource_username::"
         },
         {
           name      = "SPRING_DATASOURCE_PASSWORD"
-          valueFrom = "${aws_secretsmanager_secret.db.arn}:password::"
+          valueFrom = "${aws_secretsmanager_secret.db.arn}:spring_datasource_password::"
         }
       ]
 
@@ -566,72 +507,15 @@ resource "aws_lb_listener" "https" {
 # Secrets Manager - DB credentials
 ############################
 
-resource "random_password" "db" {
-  length  = var.db_password_length
-  special = true
-}
-
+# Supabase credentials (populated manually by user)
+# JSON schema: {"spring_datasource_url": "...", "spring_datasource_username": "...", "spring_datasource_password": "..."}
 resource "aws_secretsmanager_secret" "db" {
   name = "${local.name_prefix}/db/credentials"
 
+  description = "Supabase DSN and credentials for appCompras RDS reference stack. Populate manually with Supabase credentials."
+
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-db-secret"
-  })
-}
-
-resource "aws_secretsmanager_secret_version" "db" {
-  secret_id = aws_secretsmanager_secret.db.id
-
-  secret_string = jsonencode({
-    username = var.db_username
-    password = random_password.db.result
-    dbname   = var.db_name
-  })
-}
-
-############################
-# RDS Subnet Group
-############################
-
-resource "aws_db_subnet_group" "this" {
-  name       = "${local.name_prefix}-db-subnets"
-  subnet_ids = aws_subnet.private[*].id
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-db-subnets"
-  })
-}
-
-############################
-# RDS - Fresh create
-############################
-
-resource "aws_db_instance" "this" {
-  identifier = "${local.name_prefix}-postgres"
-
-  engine            = "postgres"
-  engine_version    = "16"
-  instance_class    = var.db_instance_class
-  allocated_storage = var.db_allocated_storage_gb
-  storage_encrypted = true
-
-  db_name  = var.db_name
-  username = var.db_username
-  password = random_password.db.result
-
-  db_subnet_group_name   = aws_db_subnet_group.this.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
-
-  publicly_accessible = false
-  multi_az            = false
-
-  backup_retention_period = 1
-  skip_final_snapshot     = true
-
-  deletion_protection = false
-
-  tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-postgres"
   })
 }
 
