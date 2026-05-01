@@ -33,6 +33,40 @@ cd $ROOT
 ./scripts/dev-down.sh
 ```
 
+## CORS configuration
+
+CORS (Cross-Origin Resource Sharing) is controlled via the `APP_CORS_ALLOWED_ORIGINS` environment variable, which accepts a comma-separated list of allowed origins. Only origins in this list are permitted to make cross-origin requests to the API.
+
+### Local dev
+
+For local frontend dev (Vite on port 5173), set:
+
+```bash
+export APP_CORS_ALLOWED_ORIGINS="http://localhost:5173"
+```
+
+### Production
+
+For the deployed frontend at `https://www.acortesdev.xyz/shopping-app/`, set:
+
+```bash
+export APP_CORS_ALLOWED_ORIGINS="https://www.acortesdev.xyz"
+```
+
+### CORS behavior
+
+- **Allowed origin**: Preflight `OPTIONS` request returns `200 OK` with `Access-Control-Allow-Origin` header.
+- **Rejected origin** (e.g., `https://evil.example.com`): Preflight returns `403 Forbidden`.
+- **No origin header**: Request is allowed (used by same-origin requests and some clients).
+
+Test a preflight request:
+
+```bash
+curl -i -X OPTIONS "https://api.acortesdev.xyz/api/recipes" \
+  -H "Origin: https://www.acortesdev.xyz" \
+  -H "Access-Control-Request-Method: POST"
+```
+
 ## Deploy backend to prod (ECS + Terraform)
 
 ### 1) Variables

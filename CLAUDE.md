@@ -249,7 +249,7 @@ Note: `com.appcompras.recipe.Unit` is a duplicate of `com.appcompras.domain.Unit
 - Production requires auth (`APP_SECURITY_REQUIRE_AUTH=true`). The resource server validates Google-issued ID tokens (`issuer = https://accounts.google.com`, audience = `GOOGLE_CLIENT_ID`). See `security/SecurityConfig.java`.
 - All `/api/**` endpoints require auth; `/actuator/health`, `/actuator/info`, swagger, and `OPTIONS` are public.
 - Per-user data isolation is enforced at the JPA layer via `user_id` columns (migration `V5__add_user_ownership.sql`). New entities that hold user data MUST include `user_id` and filter on it in repository queries — don't rely on the controller to do it.
-- CORS is env-driven via `${APP_CORS_ALLOWED_ORIGINS:${CORS_ALLOWED_ORIGINS:...}}` in `application.yml`.
+- **CORS**: Controlled by `APP_CORS_ALLOWED_ORIGINS` env-var (comma-separated list). Only origins in the list are allowed to make cross-origin requests; preflight `OPTIONS` for disallowed origins returns `403 Forbidden`. Local dev uses `http://localhost:5173` (Vite), prod uses `https://www.acortesdev.xyz`. See `docs/runbook-prod-local.md` for examples.
 - For local dev without Google login, set `APP_SECURITY_REQUIRE_AUTH=false` in root `.env` and recreate the backend container. The smoke script does this automatically.
 
 ### Database
