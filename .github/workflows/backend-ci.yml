@@ -7,7 +7,35 @@ on:
     branches: [ "master" ]
 
 jobs:
-  backend-unit:
+  backend-unit-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Grant execute permissions
+        run: chmod +x backend/gradlew || true
+
+      - name: Run fast unit tests (no @SpringBootTest)
+        working-directory: backend
+        run: >
+          ./gradlew --no-daemon test
+          -x integration.*
+          -x com.appcompras.security.ApiSecurityAuthTest
+          -x com.appcompras.security.OwnershipIsolationTest
+          -x com.appcompras.security.CorsTest
+          -x com.appcompras.security.JwtValidationTest
+
+  backend-unit-spring:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -25,17 +53,24 @@ jobs:
       - name: Grant execute permissions
         run: chmod +x backend/gradlew || true
 
-      - name: Run backend unit/application tests
+      - name: Run Spring Boot tests (@DataJpaTest, @SpringBootTest)
         working-directory: backend
         run: >
           ./gradlew --no-daemon test
-          --tests "com.appcompras.recipe.*"
-          --tests "com.appcompras.planning.*"
-          --tests "com.appcompras.shopping.*"
-          --tests "com.appcompras.ingredient.*"
-          --tests "com.appcompras.service.*"
+          --tests "com.appcompras.recipe.*RepositoryTest"
+          --tests "com.appcompras.recipe.*ServiceTest"
+          --tests "com.appcompras.planning.*RepositoryTest"
+          --tests "com.appcompras.planning.*ServiceTest"
+          --tests "com.appcompras.shopping.*RepositoryTest"
+          --tests "com.appcompras.shopping.*ServiceTest"
+          --tests "com.appcompras.shopping.*ConstraintTest"
+          --tests "com.appcompras.ingredient.*RepositoryTest"
+          --tests "com.appcompras.ingredient.*ServiceTest"
+          --tests "com.appcompras.service.*RepositoryTest"
           --tests "com.appcompras.security.*"
           --tests "com.appcompras.config.*"
+          --tests "com.appcompras.migration.*"
+          --tests "com.appcompras.integration.*"
 
   backend-integration-postgres:
     runs-on: ubuntu-latest
