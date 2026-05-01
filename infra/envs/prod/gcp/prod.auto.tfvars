@@ -1,4 +1,4 @@
-project_id = "appcompras-prod"  # PLACEHOLDER: replace with actual GCP project ID
+project_id = "menu-shopping-list"
 region     = "us-east1"
 
 cors_allowed_origins = "https://www.acortesdev.xyz,https://acortesdev.xyz"
