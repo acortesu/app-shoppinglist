@@ -64,6 +64,91 @@ class RecipeRepositoryTest {
         assertThat(breakfasts).extracting(RecipeEntity::getId).containsExactly("r-2", "r-1");
     }
 
+    @Test
+    void findByIdAndUserIdEnforcesUserIdFiltering() {
+        RecipeEntity recipeUserA = buildRecipe("r-a1", "Recipe A", MealType.LUNCH, Instant.now());
+        recipeUserA.setUserId("user-a");
+        RecipeEntity recipeUserB = buildRecipe("r-b1", "Recipe B", MealType.LUNCH, Instant.now());
+        recipeUserB.setUserId("user-b");
+
+        recipeRepository.saveAll(List.of(recipeUserA, recipeUserB));
+
+        var foundByUserA = recipeRepository.findByIdAndUserId("r-a1", "user-a");
+        var foundByUserB = recipeRepository.findByIdAndUserId("r-b1", "user-b");
+        var notFound = recipeRepository.findByIdAndUserId("r-a1", "user-b");
+
+        assertThat(foundByUserA).isPresent().get().extracting(RecipeEntity::getName).isEqualTo("Recipe A");
+        assertThat(foundByUserB).isPresent().get().extracting(RecipeEntity::getName).isEqualTo("Recipe B");
+        assertThat(notFound).isEmpty();
+    }
+
+    @Test
+    void existsByIdAndUserIdEnforcesUserIdFiltering() {
+        RecipeEntity recipeUserA = buildRecipe("r-a1", "Recipe A", MealType.LUNCH, Instant.now());
+        recipeUserA.setUserId("user-a");
+        recipeRepository.save(recipeUserA);
+
+        assertThat(recipeRepository.existsByIdAndUserId("r-a1", "user-a")).isTrue();
+        assertThat(recipeRepository.existsByIdAndUserId("r-a1", "user-b")).isFalse();
+        assertThat(recipeRepository.existsByIdAndUserId("nonexistent", "user-a")).isFalse();
+    }
+
+    @Test
+    void findAllByUserIdOrdersByCreatedAtDescThenIdAsc() {
+        Instant same = Instant.parse("2026-02-01T10:00:00Z");
+
+        RecipeEntity z = buildRecipe("recipe-z", "Z Recipe", MealType.LUNCH, same);
+        z.setUserId("user-a");
+        RecipeEntity m = buildRecipe("recipe-m", "M Recipe", MealType.LUNCH, same);
+        m.setUserId("user-a");
+        RecipeEntity older = buildRecipe("recipe-older", "Older", MealType.LUNCH, Instant.parse("2026-01-01T10:00:00Z"));
+        older.setUserId("user-a");
+
+        recipeRepository.saveAll(List.of(z, m, older));
+
+        List<RecipeEntity> results = recipeRepository.findAllByUserIdOrderByCreatedAtDescIdAsc("user-a");
+
+        assertThat(results)
+                .extracting(RecipeEntity::getId)
+                .containsExactly("recipe-m", "recipe-z", "recipe-older");
+    }
+
+    @Test
+    void deletedUserRecipesAreNotAccessible() {
+        RecipeEntity recipeUserA = buildRecipe("r-a1", "Recipe A", MealType.LUNCH, Instant.now());
+        recipeUserA.setUserId("user-a");
+        recipeRepository.save(recipeUserA);
+
+        assertThat(recipeRepository.findByIdAndUserId("r-a1", "user-a")).isPresent();
+        assertThat(recipeRepository.findAllByUserIdOrderByCreatedAtDescIdAsc("user-a")).hasSize(1);
+
+        List<RecipeEntity> userARecipes = recipeRepository.findAllByUserIdOrderByCreatedAtDescIdAsc("user-a");
+        recipeRepository.deleteAll(userARecipes);
+
+        assertThat(recipeRepository.findByIdAndUserId("r-a1", "user-a")).isEmpty();
+        assertThat(recipeRepository.findAllByUserIdOrderByCreatedAtDescIdAsc("user-a")).isEmpty();
+    }
+
+    @Test
+    void caseInsensitiveIdOrderingInSecondarySort() {
+        Instant same = Instant.parse("2026-02-01T10:00:00Z");
+
+        RecipeEntity recipeA = buildRecipe("Recipe-A", "A Recipe", MealType.LUNCH, same);
+        recipeA.setUserId("user-a");
+        RecipeEntity recipeB = buildRecipe("Recipe-B", "B Recipe", MealType.LUNCH, same);
+        recipeB.setUserId("user-a");
+        RecipeEntity recipeC = buildRecipe("recipe-c", "C Recipe", MealType.LUNCH, same);
+        recipeC.setUserId("user-a");
+
+        recipeRepository.saveAll(List.of(recipeA, recipeB, recipeC));
+
+        List<RecipeEntity> results = recipeRepository.findAllByUserIdOrderByCreatedAtDescIdAsc("user-a");
+
+        assertThat(results)
+                .extracting(RecipeEntity::getId)
+                .containsExactly("Recipe-A", "Recipe-B", "recipe-c");
+    }
+
     private RecipeEntity buildRecipe(String id, String name, MealType type, Instant createdAt) {
         RecipeEntity recipe = new RecipeEntity();
         recipe.setId(id);
