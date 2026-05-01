@@ -1,5 +1,6 @@
 package com.appcompras.shopping;
 
+import com.appcompras.config.ApiErrorCode;
 import com.appcompras.config.BusinessRuleException;
 import com.appcompras.domain.ShoppingListItem;
 import com.appcompras.security.CurrentUserProvider;
@@ -170,7 +171,7 @@ public class ShoppingListDraftService {
 
             if (!item.manual() && (item.ingredientId() == null || item.ingredientId().isBlank())) {
                 throw new BusinessRuleException(
-                        "SHOPPING_ITEM_INGREDIENT_REQUIRED",
+                        ApiErrorCode.SHOPPING_ITEM_INGREDIENT_REQUIRED,
                         context + ".ingredientId is required when manual=false"
                 );
             }
@@ -183,25 +184,25 @@ public class ShoppingListDraftService {
 
             if (hasPackagingData && !hasCompletePackagingData) {
                 throw new BusinessRuleException(
-                        "SHOPPING_ITEM_PACKAGE_FIELDS_INCOMPLETE",
+                        ApiErrorCode.SHOPPING_ITEM_PACKAGE_FIELDS_INCOMPLETE,
                         context + " package fields must be sent together: suggestedPackages, packageAmount, packageUnit"
                 );
             }
 
             if (hasSuggestedPackages && item.suggestedPackages() <= 0) {
-                throw new BusinessRuleException("SHOPPING_ITEM_INVALID_SUGGESTED_PACKAGES", context + ".suggestedPackages must be > 0");
+                throw new BusinessRuleException(ApiErrorCode.SHOPPING_ITEM_INVALID_SUGGESTED_PACKAGES, context + ".suggestedPackages must be > 0");
             }
 
             if (hasPackageAmount && item.packageAmount() <= 0) {
-                throw new BusinessRuleException("SHOPPING_ITEM_INVALID_PACKAGE_AMOUNT", context + ".packageAmount must be > 0");
+                throw new BusinessRuleException(ApiErrorCode.SHOPPING_ITEM_INVALID_PACKAGE_AMOUNT, context + ".packageAmount must be > 0");
             }
 
             if (item.note() != null && item.note().length() > 280) {
-                throw new BusinessRuleException("SHOPPING_ITEM_NOTE_TOO_LONG", context + ".note max length is 280");
+                throw new BusinessRuleException(ApiErrorCode.SHOPPING_ITEM_NOTE_TOO_LONG, context + ".note max length is 280");
             }
 
             if (item.sortOrder() != null && item.sortOrder() < 0) {
-                throw new BusinessRuleException("SHOPPING_ITEM_INVALID_SORT_ORDER", context + ".sortOrder must be >= 0");
+                throw new BusinessRuleException(ApiErrorCode.SHOPPING_ITEM_INVALID_SORT_ORDER, context + ".sortOrder must be >= 0");
             }
         }
     }

@@ -43,7 +43,7 @@ public class RestExceptionHandler {
 
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiError> handleBusinessRule(BusinessRuleException ex, HttpServletRequest request) {
-        return response(HttpStatus.BAD_REQUEST, ex.getCode(), ex.getMessage(), request);
+        return response(HttpStatus.BAD_REQUEST, ex.getCodeAsString(), ex.getMessage(), request);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

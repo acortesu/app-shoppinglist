@@ -1,5 +1,6 @@
 package com.appcompras.shopping;
 
+import com.appcompras.config.ApiErrorCode;
 import com.appcompras.config.BusinessRuleException;
 import com.appcompras.domain.Recipe;
 import com.appcompras.domain.RecipeIngredient;
@@ -64,7 +65,7 @@ public class ShoppingListController {
                 .map(slot -> recipeService.findById(slot.recipeId())
                         .map(this::toDomainRecipe)
                         .orElseThrow(() -> new BusinessRuleException(
-                                "PLAN_RECIPE_NOT_FOUND",
+                                ApiErrorCode.PLAN_RECIPE_NOT_FOUND,
                                 "Recipe not found for slot: " + slot.recipeId()
                         )))
                 .toList();
