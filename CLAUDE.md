@@ -256,7 +256,32 @@ Note: `com.appcompras.recipe.Unit` is a duplicate of `com.appcompras.domain.Unit
 
 - PostgreSQL 16 in all environments. Schema is managed exclusively by Flyway (`backend/src/main/resources/db/migration/V*.sql`); `spring.jpa.hibernate.ddl-auto=validate` — Hibernate will refuse to start if entities drift from the schema. Always add a new `V<N>__*.sql` migration rather than editing an existing one.
 - H2 in PostgreSQL-compat mode is used only for the fast unit-test job; integration tests and prod use real Postgres.
-- Post-Block 8: prod Postgres lives in **Supabase** (free tier, Supavisor transaction pooler on port 6543). Local dev still uses Postgres in Docker.
+- **Local dev**: Docker Postgres 16 via `docker-compose.yml` (Supabase not required offline).
+- **Prod** (post-Block 8): PostgreSQL hosted in [Supabase](https://supabase.com) (free tier, `appcompras-prod` project).
+
+#### Supabase connection (prod)
+
+Supabase provides a managed Postgres instance with optional transaction pooler (Supavisor):
+
+- **Direct connection** (standard `psql`): `db.<ref>.supabase.co:5432`
+- **Pooled connection** (Cloud Run, for JPA): `db.<ref>.supabase.co:6543` (transaction mode, `?pgbouncer=true` in JDBC URL)
+- SSL required: all JDBC URLs must include `?sslmode=require` (enforced by Supabase)
+
+Connection string format (Cloud Run + Supabase Transaction Pooler):
+```
+jdbc:postgresql://db.<project-ref>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require
+```
+
+Credentials:
+- Username: `postgres` (default Supabase user)
+- Password: stored in GCP Secret Manager (`appcompras-supabase-url` secret, base64-encoded)
+
+Migration verification: after creating Supabase project, run locally with overridden `DB_URL`:
+```bash
+DB_URL="jdbc:postgresql://db.<ref>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require" \
+  ./gradlew --no-daemon bootRun
+```
+Expected: Flyway applies V1–V7 cleanly without errors.
 
 ### Frontend
 
