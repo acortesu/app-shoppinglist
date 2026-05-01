@@ -1,0 +1,144 @@
+name: Backend Deploy (Cloud Run)
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - "backend/**"
+      - "infra/envs/prod/gcp/**"
+      - ".github/workflows/backend-deploy.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGISTRY_REGION: us-east1
+  REGISTRY_REPO: appcompras-backend
+  SERVICE_NAME: appcompras-backend
+  CLOUD_RUN_REGION: us-east1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.acortesdev.xyz
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: tag
+        run: |
+          TAG="$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Generated image tag: $TAG"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 3600s
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY_REGION }}-docker.pkg.dev
+
+      - name: Build and push image to Artifact Registry
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/backend:${{ steps.tag.outputs.tag }}
+            ${{ env.REGISTRY_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run (no traffic)
+        id: deploy
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image="${{ env.REGISTRY_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/backend:${{ steps.tag.outputs.tag }}" \
+            --region=${{ env.CLOUD_RUN_REGION }} \
+            --no-traffic \
+            --allow-unauthenticated \
+            --set-env-vars="APP_SECURITY_REQUIRE_AUTH=true,APP_ENV=prod,APP_VERSION=0.1.0" \
+            --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+          REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.CLOUD_RUN_REGION }} --format='value(status.latestRevision)')
+          REVISION_URL="https://${REVISION}-${{ env.CLOUD_RUN_REGION }}.run.app"
+          echo "revision=$REVISION" >> $GITHUB_OUTPUT
+          echo "revision_url=$REVISION_URL" >> $GITHUB_OUTPUT
+          echo "Deployed revision: $REVISION"
+          echo "Revision URL: $REVISION_URL"
+
+      - name: Smoke test (health check)
+        id: smoke
+        run: |
+          REVISION_URL="${{ steps.deploy.outputs.revision_url }}"
+          echo "Testing: $REVISION_URL/actuator/health"
+
+          max_retries=15
+          for i in $(seq 1 $max_retries); do
+            response=$(curl -s -o /dev/null -w "%{http_code}" "$REVISION_URL/actuator/health" || echo "000")
+            if [ "$response" = "200" ]; then
+              echo "✓ Health check passed (attempt $i/$max_retries)"
+              exit 0
+            fi
+            echo "Health check attempt $i/$max_retries: got $response, retrying..."
+            sleep 5
+          done
+
+          echo "✗ Health check failed after $max_retries attempts"
+          exit 1
+
+      - name: Gradual traffic shift (10% → 50% → 100%)
+        if: success()
+        run: |
+          PREV_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.CLOUD_RUN_REGION }} --format='value(status.traffic[traffic_type="TRAFFIC_TARGET_ALLOCATION"].revisions)' | grep -v ${{ steps.deploy.outputs.revision }} || echo "")
+
+          echo "Phase 1: Shifting 10% to new revision..."
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --to-revisions ${{ steps.deploy.outputs.revision }}=10 \
+            --region=${{ env.CLOUD_RUN_REGION }}
+          sleep 30
+
+          echo "Phase 2: Shifting 50% to new revision..."
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --to-revisions ${{ steps.deploy.outputs.revision }}=50 \
+            --region=${{ env.CLOUD_RUN_REGION }}
+          sleep 30
+
+          echo "Phase 3: Shifting 100% to new revision..."
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --to-revisions ${{ steps.deploy.outputs.revision }}=100 \
+            --region=${{ env.CLOUD_RUN_REGION }}
+
+          echo "✓ Deployment complete and receiving 100% traffic"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed. Rolling back to previous revision..."
+          PREV_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.CLOUD_RUN_REGION }} --format='value(status.traffic[traffic_type="TRAFFIC_TARGET_ALLOCATION"].revisions)' | head -1)
+          if [ -n "$PREV_REVISION" ]; then
+            gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+              --to-revisions "$PREV_REVISION=100" \
+              --region=${{ env.CLOUD_RUN_REGION }}
+            echo "✓ Rolled back to $PREV_REVISION"
+          else
+            echo "⚠ No previous revision found for rollback"
+          fi
+          exit 1
