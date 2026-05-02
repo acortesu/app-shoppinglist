@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
+import { RecipeModalContext } from '../../contexts/RecipeModalContext';
 import { RecipeFormModal } from './RecipeFormModal';
 
 const NUMBER_COLORS = ['var(--c3)', 'var(--c1)', 'var(--c4)', 'var(--c5)', 'var(--c6)', 'var(--c2)'];
@@ -8,12 +9,11 @@ const MEAL_LABEL = { BREAKFAST: 'Desayuno', LUNCH: 'Almuerzo', DINNER: 'Cena' };
 const TAG_COLORS = ['var(--c5)', 'var(--c6)', 'var(--c2)', 'var(--c1)'];
 
 export function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
+  const { showForm, setShowForm, editing, setEditing, openNewRecipe, openEditRecipe, closeForm } = useContext(RecipeModalContext);
   const [recipes, setRecipes] = useState([]);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
 
   const todayLabel = new Date().toLocaleDateString('es-CR', {
     weekday: 'long',
@@ -148,10 +148,7 @@ export function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
           <div
             key={recipe.id}
             className="recipe-list-item"
-            onClick={() => {
-              setEditing(recipe);
-              setShowForm(true);
-            }}
+            onClick={() => openEditRecipe(recipe)}
           >
             <span
               className="recipe-number"
@@ -175,10 +172,7 @@ export function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
 
       <button
         className="fab"
-        onClick={() => {
-          setEditing(null);
-          setShowForm(true);
-        }}
+        onClick={openNewRecipe}
         title="Nueva receta"
       >
         +
@@ -187,13 +181,9 @@ export function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
       <RecipeFormModal
         isOpen={showForm}
         initial={editing}
-        onClose={() => {
-          setShowForm(false);
-          setEditing(null);
-        }}
+        onClose={closeForm}
         onSaved={async () => {
-          setShowForm(false);
-          setEditing(null);
+          closeForm();
           await loadRecipes();
           notifySuccess(editing ? 'Receta actualizada' : 'Receta creada');
         }}

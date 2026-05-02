@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
 import { isoDate, addDays, startOfWeekMonday } from '../../utils/helpers';
+import { RecipeModalContext } from '../../contexts/RecipeModalContext';
+import { RecipeFormModal } from '../recipes/RecipeFormModal';
 
 const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'];
 const MEAL_LABEL = { BREAKFAST: 'Desayuno', LUNCH: 'Almuerzo', DINNER: 'Cena' };
@@ -35,6 +37,7 @@ function getDayLabel(isoDate) {
 }
 
 export function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
+  const { showForm, editing, openNewRecipe, closeForm } = useContext(RecipeModalContext);
   const [period, setPeriod] = useState('WEEK');
   const [startDate, setStartDate] = useState(isoDate(startOfWeekMonday()));
   const [recipes, setRecipes] = useState([]);
@@ -270,9 +273,16 @@ export function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
           })}
         </article>
 
-        <div style={{ padding: '0 18px 24px' }}>
+        <div style={{ padding: '0 18px 24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button className="btn btn-primary planner-save-btn" onClick={savePlan} style={{ '--screen-primary': 'var(--c4)' }}>
             Guardar plan
+          </button>
+          <button
+            className="link-btn"
+            onClick={openNewRecipe}
+            style={{ fontSize: '13px', padding: '4px 0' }}
+          >
+            + Nueva receta
           </button>
         </div>
       </div>
@@ -326,6 +336,19 @@ export function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
           </div>
         </div>
       )}
+
+      <RecipeFormModal
+        isOpen={showForm}
+        initial={editing}
+        onClose={closeForm}
+        onSaved={async () => {
+          closeForm();
+          await load();
+          notifySuccess(editing ? 'Receta actualizada' : 'Receta creada');
+        }}
+        setBusy={setBusy}
+        notifyError={notifyError}
+      />
     </section>
   );
 }

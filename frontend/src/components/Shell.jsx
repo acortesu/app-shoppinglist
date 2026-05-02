@@ -28,7 +28,7 @@ export function Shell({ children, tab, onTabChange, busy, error, success, onLogo
             <path d="M7 13v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-6"></path>
             <path d="M12 3c-2.5 2-4 4-4 6h8c0-2-1.5-4-4-6z"></path>
           </svg>
-          <span className="nav-tab-label">Cocinar</span>
+          <span className="nav-tab-label">Recetas</span>
         </button>
         <button
           className={`nav-tab ${tab === 'planner' ? 'active' : ''}`}
