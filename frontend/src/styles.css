@@ -310,15 +310,15 @@ textarea {
   left: 50%;
   transform: translateX(-50%);
   bottom: 16px;
-  width: auto;
+  width: min(calc(100vw - 36px), 424px);
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 4px;
+  gap: 16px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 8px 16px;
+  padding: 10px 18px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: 20;
 }
