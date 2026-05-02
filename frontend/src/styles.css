@@ -974,27 +974,43 @@ textarea {
   width: 5px;
   height: 5px;
   border-radius: 999px;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
 }
 
 .dot-breakfast {
   background: var(--c5);
 }
 
+.dot-breakfast.dot-empty {
+  opacity: 0.3;
+}
+
 .dot-lunch {
   background: var(--c2);
+}
+
+.dot-lunch.dot-empty {
+  opacity: 0.3;
 }
 
 .dot-dinner {
   background: var(--c3);
 }
 
-.dot-empty {
-  background: var(--border);
+.dot-dinner.dot-empty {
+  opacity: 0.3;
 }
 
-.day-chip.active .dot-empty {
-  background: rgba(255, 255, 255, 0.3);
+.day-chip.active .dot-breakfast.dot-empty {
+  opacity: 0.5;
+}
+
+.day-chip.active .dot-lunch.dot-empty {
+  opacity: 0.5;
+}
+
+.day-chip.active .dot-dinner.dot-empty {
+  opacity: 0.5;
 }
 
 /* PLANNER CARD */

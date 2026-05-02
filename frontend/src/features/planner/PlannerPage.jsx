@@ -4,7 +4,13 @@ import { isoDate, addDays, startOfWeekMonday } from '../../utils/helpers';
 
 const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'];
 const MEAL_LABEL = { BREAKFAST: 'Desayuno', LUNCH: 'Almuerzo', DINNER: 'Cena' };
-const MEAL_ICONS = { BREAKFAST: '☀', LUNCH: '+', DINNER: '🌙' };
+const MEAL_ICON_SUN = '☀';
+const MEAL_ICON_PLUS = '+';
+const MEAL_ICON_MOON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" strokeWidth="2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 function getWeekNumber(isoDate) {
   const d = new Date(isoDate + 'T00:00:00');
@@ -217,7 +223,7 @@ export function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
                   {MEAL_TYPES.map((mt) => (
                     <span
                       key={mt}
-                      className={`dot ${plannedMeals.includes(mt) ? `dot-${mt.toLowerCase()}` : 'dot-empty'}`}
+                      className={`dot dot-${mt.toLowerCase()} ${plannedMeals.includes(mt) ? 'dot-filled' : 'dot-empty'}`}
                     />
                   ))}
                 </div>
@@ -235,10 +241,16 @@ export function PlannerPage({ isActive, setBusy, notifyError, notifySuccess }) {
           {MEAL_TYPES.map((mealType) => {
             const key = `${selectedDay}|${mealType}`;
             const recipeId = slots[key];
+            const mealIcon =
+              mealType === 'BREAKFAST'
+                ? MEAL_ICON_SUN
+                : mealType === 'LUNCH'
+                ? MEAL_ICON_PLUS
+                : MEAL_ICON_MOON;
             return (
               <div key={mealType} className="planner-meal-row">
                 <span className={`meal-icon meal-icon-${mealType.toLowerCase()}`}>
-                  {MEAL_ICONS[mealType]}
+                  {mealIcon}
                 </span>
                 <div className="meal-text">
                   <p className="meal-type-label">{MEAL_LABEL[mealType]}</p>
