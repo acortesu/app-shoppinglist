@@ -29,7 +29,7 @@ jobs:
         working-directory: backend
         run: >
           ./gradlew --no-daemon test
-          -x integration.*
+          -x com.appcompras.integration.PostgresE2EFlowTest
           -x com.appcompras.security.ApiSecurityAuthTest
           -x com.appcompras.security.OwnershipIsolationTest
           -x com.appcompras.security.CorsTest
