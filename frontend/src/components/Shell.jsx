@@ -19,22 +19,28 @@ export function Shell({ children, tab, onTabChange, busy, error, success, onLogo
 
       <nav className="bottom-nav">
         <button
-          className={tab === 'recipes' ? 'active' : ''}
+          className={`nav-tab ${tab === 'recipes' ? 'active' : ''}`}
           onClick={() => onTabChange('recipes')}
+          style={tab === 'recipes' ? { '--screen-primary': 'var(--c3)' } : {}}
         >
-          🍽️ Recetas
+          <span>🍳</span>
+          <span className="nav-tab-label">Cocinar</span>
         </button>
         <button
-          className={tab === 'planner' ? 'active' : ''}
+          className={`nav-tab ${tab === 'planner' ? 'active' : ''}`}
           onClick={() => onTabChange('planner')}
+          style={tab === 'planner' ? { '--screen-primary': 'var(--c4)' } : {}}
         >
-          📅 Planificador
+          <span>📅</span>
+          <span className="nav-tab-label">Semana</span>
         </button>
         <button
-          className={tab === 'shopping' ? 'active' : ''}
+          className={`nav-tab ${tab === 'shopping' ? 'active' : ''}`}
           onClick={() => onTabChange('shopping')}
+          style={tab === 'shopping' ? { '--screen-primary': 'var(--c2)' } : {}}
         >
-          🛒 Compras
+          <span>🛒</span>
+          <span className="nav-tab-label">Lista</span>
         </button>
       </nav>
     </div>
