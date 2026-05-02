@@ -18,5 +18,6 @@ COPY --from=build /home/gradle/project/build/libs/*.jar /app/app.jar
 # -Djava.security.egd: use /dev/urandom for entropy
 ENV JAVA_OPTS="-XX:+UseSerialGC -Xshare:auto -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom"
 
+RUN ls -lah /app/ || echo "ERROR: /app directory missing"
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "echo 'Starting JVM...' && java ${JAVA_OPTS} -jar /app/app.jar || (echo 'JVM exited with error'; exit 1)"]
+ENTRYPOINT ["sh", "-c", "set -x; echo 'Starting JVM...' >&2; ls -la /app/app.jar >&2; java ${JAVA_OPTS} -jar /app/app.jar 2>&1"]
