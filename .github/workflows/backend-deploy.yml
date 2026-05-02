@@ -72,7 +72,7 @@ jobs:
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --no-traffic \
             --allow-unauthenticated \
-            --set-env-vars="APP_SECURITY_REQUIRE_AUTH=true,APP_ENV=prod,APP_VERSION=0.1.0" 2>&1)
+            --set-env-vars="APP_SECURITY_REQUIRE_AUTH=true,APP_ENV=prod,APP_VERSION=0.1.0,LOGGING_LEVEL_ROOT=DEBUG" 2>&1)
 
           REVISION=$(echo "$DEPLOY_OUTPUT" | grep -oP 'revision \[\K[^\]]+' | head -1)
           REVISION_URL="https://${REVISION}-${{ env.CLOUD_RUN_REGION }}.run.app"

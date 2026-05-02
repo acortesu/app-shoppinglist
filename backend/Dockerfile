@@ -19,4 +19,4 @@ COPY --from=build /home/gradle/project/build/libs/*.jar /app/app.jar
 ENV JAVA_OPTS="-XX:+UseSerialGC -Xshare:auto -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8080
-ENTRYPOINT exec java ${JAVA_OPTS} -jar /app/app.jar
+ENTRYPOINT exec java ${JAVA_OPTS} -Dlogging.level.root=INFO -jar /app/app.jar
