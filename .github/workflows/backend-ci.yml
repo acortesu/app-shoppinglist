@@ -29,11 +29,13 @@ jobs:
         working-directory: backend
         run: >
           ./gradlew --no-daemon test
-          -x com.appcompras.integration.PostgresE2EFlowTest
-          -x com.appcompras.security.ApiSecurityAuthTest
-          -x com.appcompras.security.OwnershipIsolationTest
-          -x com.appcompras.security.CorsTest
-          -x com.appcompras.security.JwtValidationTest
+          --tests "com.appcompras.recipe.*"
+          --tests "com.appcompras.planning.*"
+          --tests "com.appcompras.shopping.*"
+          --tests "com.appcompras.ingredient.*"
+          --tests "com.appcompras.domain.*"
+          --tests "com.appcompras.service.*"
+          --tests "com.appcompras.util.*"
 
   backend-unit-spring:
     runs-on: ubuntu-latest
