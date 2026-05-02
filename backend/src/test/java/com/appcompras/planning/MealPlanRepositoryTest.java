@@ -144,6 +144,11 @@ class MealPlanRepositoryTest {
         Instant same = Instant.parse("2026-05-01T12:00:00Z");
         LocalDate startDate = LocalDate.of(2026, 5, 1);
 
+        // Update planUserA to have same createdAt as the new plans
+        planUserA.setCreatedAt(same);
+        planUserA.setUpdatedAt(same);
+        mealPlanRepository.save(planUserA);
+
         MealPlanEntity planZ = new MealPlanEntity();
         planZ.setId("plan-a-z");
         planZ.setUserId("user-a");
@@ -167,9 +172,10 @@ class MealPlanRepositoryTest {
         List<MealPlanEntity> results = mealPlanRepository.findAllByUserIdOrderByCreatedAtDescIdAsc("user-a");
 
         assertEquals(3, results.size());
-        assertEquals("plan-a-m", results.get(0).getId());
-        assertEquals("plan-a-z", results.get(1).getId());
-        assertEquals("plan-a-1", results.get(2).getId());
+        // All have same createdAt, so ordered by id ascending: 1 < m < z
+        assertEquals("plan-a-1", results.get(0).getId());
+        assertEquals("plan-a-m", results.get(1).getId());
+        assertEquals("plan-a-z", results.get(2).getId());
     }
 
     @Test
