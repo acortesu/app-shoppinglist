@@ -9,8 +9,7 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [validPlanIds, setValidPlanIds] = useState(new Set());
   const [shoppingNotice, setShoppingNotice] = useState('');
-  const [recipesById, setRecipesById] = useState({});
-  const [draggingId, setDraggingId] = useState('');
+  const [showPlanPicker, setShowPlanPicker] = useState(false);
 
   const localizeDraft = (nextDraft, labelByIngredientId) => {
     if (!nextDraft?.items?.length) return nextDraft;
@@ -37,7 +36,6 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
         api.listIngredients()
       ]);
       const recipeIds = new Set((allRecipes || []).map((r) => r.id));
-      setRecipesById(Object.fromEntries((allRecipes || []).map((r) => [r.id, r])));
       const labelByIngredientId = Object.fromEntries(
         (allIngredients || []).map((it) => [it.id, it.preferredLabel || it.name])
       );
@@ -58,7 +56,7 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
       setSelectedPlanId(nextSelectedPlanId);
       setShoppingNotice(
         nextValidPlanIds.size < (allPlans || []).length
-          ? 'Hay planes con recetas eliminadas. Solo se muestran planes válidos para generar lista.'
+          ? 'Hay planes con recetas eliminadas. Solo se muestran planes válidos.'
           : ''
       );
     } catch (err) {
@@ -82,7 +80,6 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
       notifyError(new Error('El plan seleccionado tiene recetas eliminadas. Corrige el plan primero.'), 'shopping');
       return;
     }
-
     try {
       setBusy(true);
       const [created, allIngredients] = await Promise.all([
@@ -110,50 +107,6 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
       return {
         ...prev,
         items: prev.items.map((it) => (it.id === id ? { ...it, ...normalizedPatch } : it))
-      };
-    });
-  };
-
-  const moveItem = (id, direction) => {
-    setDraft((prev) => {
-      if (!prev?.items?.length) return prev;
-      const sorted = [...prev.items].sort((a, b) => a.sortOrder - b.sortOrder);
-      const idx = sorted.findIndex((it) => it.id === id);
-      if (idx < 0) return prev;
-      const nextIdx = idx + direction;
-      if (nextIdx < 0 || nextIdx >= sorted.length) return prev;
-      const [moved] = sorted.splice(idx, 1);
-      sorted.splice(nextIdx, 0, moved);
-      return {
-        ...prev,
-        items: sorted.map((it, order) => ({ ...it, sortOrder: order }))
-      };
-    });
-  };
-
-  const moveItemByDrop = (sourceId, targetId) => {
-    if (!sourceId || !targetId || sourceId === targetId) return;
-    setDraft((prev) => {
-      if (!prev?.items?.length) return prev;
-      const sorted = [...prev.items].sort((a, b) => a.sortOrder - b.sortOrder);
-      const sourceIdx = sorted.findIndex((it) => it.id === sourceId);
-      const targetIdx = sorted.findIndex((it) => it.id === targetId);
-      if (sourceIdx < 0 || targetIdx < 0) return prev;
-      const [moved] = sorted.splice(sourceIdx, 1);
-      sorted.splice(targetIdx, 0, moved);
-      return {
-        ...prev,
-        items: sorted.map((it, order) => ({ ...it, sortOrder: order }))
-      };
-    });
-  };
-
-  const bulkSetBought = (value) => {
-    setDraft((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.map((it) => ({ ...it, bought: value }))
       };
     });
   };
@@ -197,7 +150,6 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
       notifyError(new Error('Primero genera una lista desde un plan'), 'shopping');
       return;
     }
-
     const items = (draft.items || []).map((it, idx) => ({
       id: it.id,
       ingredientId: it.ingredientId,
@@ -212,7 +164,6 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
       note: it.note || null,
       sortOrder: idx
     }));
-
     try {
       setBusy(true);
       const updated = await api.updateShoppingList(draft.id, items);
@@ -225,111 +176,119 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
     }
   };
 
-  const unbought = (draft?.items || []).filter((it) => !it.bought).sort((a, b) => a.sortOrder - b.sortOrder);
-  const bought = (draft?.items || []).filter((it) => it.bought).sort((a, b) => a.sortOrder - b.sortOrder);
-  const allBought = draft?.items?.length > 0 && draft.items.every((it) => it.bought);
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId);
+  const planDateLabel = selectedPlan
+    ? new Date(selectedPlan.startDate + 'T00:00:00')
+        .toLocaleString('es-CR', { day: 'numeric', month: 'short' })
+        .toUpperCase()
+        .replace('.', '')
+    : null;
+
+  const sortedItems = (draft?.items || []).slice().sort((a, b) => {
+    if (a.bought !== b.bought) return a.bought ? 1 : -1;
+    return a.sortOrder - b.sortOrder;
+  });
+
+  const boughtCount = (draft?.items || []).filter((it) => it.bought).length;
+  const totalCount = (draft?.items || []).length;
+  const pct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0;
 
   return (
     <section>
-      <header className="top-header" style={{ '--screen-primary': 'var(--c2)' }}>
-        <h1>Compras</h1>
+      <header className="shopping-header">
+        <div className="shopping-header-top">
+          {planDateLabel ? (
+            <button className="shopping-plan-label" onClick={() => setShowPlanPicker((s) => !s)}>
+              PLAN · {planDateLabel} ▾
+            </button>
+          ) : (
+            <button className="shopping-plan-label" onClick={() => setShowPlanPicker((s) => !s)}>
+              SIN PLAN ▾
+            </button>
+          )}
+        </div>
 
-        {draft && (
-          <div className="card" style={{ background: 'var(--c2)', color: '#ffffff', marginBottom: '12px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div className="quantity-text" style={{ fontSize: '24px' }}>
-                {unbought.length} DE {draft.items.length}
-              </div>
-              <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px' }}>
-                {draft.items.length > 0 ? `${Math.round((bought.length / draft.items.length) * 100)}%` : '0%'}
-              </div>
-              <div style={{ height: '4px', background: 'rgba(255,255,255,0.3)', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: '#ffffff', width: `${draft.items.length > 0 ? (bought.length / draft.items.length) * 100 : 0}%`, transition: 'width 0.2s' }} />
-              </div>
-            </div>
+        <h1 className="shopping-title">
+          Lista de <span className="shopping-title-accent">compras</span>
+        </h1>
+
+        {showPlanPicker && (
+          <div className="shopping-plan-picker">
+            <select
+              className="input"
+              value={selectedPlanId}
+              onChange={(e) => { setSelectedPlanId(e.target.value); setShowPlanPicker(false); }}
+              autoFocus
+            >
+              <option value="">Selecciona un plan</option>
+              {plans.filter((p) => validPlanIds.has(p.id)).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.startDate} ({p.period === 'WEEK' ? 'Semanal' : 'Quincenal'})
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
-        <select className="input" value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)}>
-          <option value="">Selecciona un plan</option>
-          {plans.filter((p) => validPlanIds.has(p.id)).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.startDate} ({p.period === 'WEEK' ? 'Semanal' : 'Quincenal'})
-            </option>
-          ))}
-        </select>
-
-        <button className="btn btn-primary" onClick={regenerate} style={{ width: '100%', marginTop: '8px', '--screen-primary': 'var(--c2)' }}>
-          {draft ? 'Regenerar lista' : 'Generar lista'}
-        </button>
-
         {shoppingNotice && <p className="notice-text">{shoppingNotice}</p>}
+
+        {draft ? (
+          <div className="shopping-progress-card">
+            <div className="shopping-progress-top">
+              <div>
+                <p className="shopping-progress-label">{boughtCount} DE {totalCount} COMPRADOS</p>
+                <p className="shopping-progress-pct">{pct}<span className="shopping-progress-pct-sym">%</span></p>
+              </div>
+              <button className="shopping-regen-btn" onClick={regenerate}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                Regenerar
+              </button>
+            </div>
+            <div className="shopping-progress-bar">
+              <div className="shopping-progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        ) : (
+          <div className="shopping-empty-card">
+            <p className="shopping-empty-text">Selecciona un plan y genera una lista.</p>
+            <button className="shopping-regen-btn" onClick={regenerate}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              Generar lista
+            </button>
+          </div>
+        )}
       </header>
 
-      <div className="stack">
-        {draft ? (
-          <>
-            {unbought.length > 0 && (
-              <div>
-                <p className="section-title">POR COMPRAR</p>
-                {unbought.map((item) => (
-                  <ShoppingItem
-                    key={item.id}
-                    item={item}
-                    onUpdate={updateItem}
-                    onMove={moveItem}
-                    onDrop={moveItemByDrop}
-                    onRemove={removeItem}
-                    draggingId={draggingId}
-                    setDraggingId={setDraggingId}
-                  />
-                ))}
-              </div>
-            )}
-
-            {bought.length > 0 && (
-              <div>
-                <p className="section-title">COMPRADO</p>
-                {bought.map((item) => (
-                  <ShoppingItem
-                    key={item.id}
-                    item={item}
-                    onUpdate={updateItem}
-                    onMove={moveItem}
-                    onDrop={moveItemByDrop}
-                    onRemove={removeItem}
-                    draggingId={draggingId}
-                    setDraggingId={setDraggingId}
-                  />
-                ))}
-              </div>
-            )}
-
-            {draft.items.length === 0 && <p className="muted">No hay items en la lista.</p>}
-
-            {draft.items.length > 0 && (
-              <div className="row gap-sm">
-                <button className="btn" onClick={() => bulkSetBought(false)} style={{ flex: 1 }}>
-                  Marcar todo por comprar
-                </button>
-                <button className="btn" onClick={() => bulkSetBought(true)} style={{ flex: 1 }}>
-                  Marcar todo comprado
-                </button>
-              </div>
-            )}
-
-            <button className="btn" onClick={addManual}>
-              + Agregar item manual
-            </button>
-
-            <button className="btn btn-primary" onClick={saveDraft} style={{ '--screen-primary': 'var(--c2)' }}>
-              Guardar cambios
-            </button>
-          </>
-        ) : (
-          <p className="muted">Selecciona un plan y genera una lista para comenzar.</p>
+      <div className="shopping-list">
+        {sortedItems.map((item) => (
+          <ShoppingItem
+            key={item.id}
+            item={item}
+            onUpdate={updateItem}
+            onRemove={removeItem}
+          />
+        ))}
+        {draft && totalCount === 0 && (
+          <p className="muted" style={{ padding: '24px 18px' }}>No hay items en la lista.</p>
         )}
       </div>
+
+      {draft && (
+        <div className="shopping-footer">
+          <button className="shopping-add-btn" onClick={addManual}>
+            + Agregar item
+          </button>
+          <button className="btn btn-primary shopping-save-btn" onClick={saveDraft} style={{ '--screen-primary': '#111111' }}>
+            Guardar cambios
+          </button>
+        </div>
+      )}
     </section>
   );
 }
