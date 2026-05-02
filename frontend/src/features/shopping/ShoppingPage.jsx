@@ -214,19 +214,32 @@ export function ShoppingPage({ isActive, setBusy, notifyError, notifySuccess }) 
 
         {showPlanPicker && (
           <div className="shopping-plan-picker">
-            <select
-              className="input"
-              value={selectedPlanId}
-              onChange={(e) => { setSelectedPlanId(e.target.value); setShowPlanPicker(false); }}
-              autoFocus
-            >
-              <option value="">Selecciona un plan</option>
-              {plans.filter((p) => validPlanIds.has(p.id)).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.startDate} ({p.period === 'WEEK' ? 'Semanal' : 'Quincenal'})
-                </option>
-              ))}
-            </select>
+            {plans.filter((p) => validPlanIds.has(p.id)).map((p) => {
+              const d = new Date(p.startDate + 'T00:00:00');
+              const end = new Date(p.startDate + 'T00:00:00');
+              end.setDate(end.getDate() + (p.period === 'WEEK' ? 6 : 13));
+              const label = `${d.getDate()} — ${end.getDate()} ${end.toLocaleString('es-CR', { month: 'short' }).replace('.', '')}`;
+              const sublabel = p.period === 'WEEK' ? 'Semanal' : 'Quincenal';
+              const isSelected = p.id === selectedPlanId;
+              return (
+                <button
+                  key={p.id}
+                  className={`plan-option ${isSelected ? 'plan-option-active' : ''}`}
+                  onClick={() => { setSelectedPlanId(p.id); setShowPlanPicker(false); }}
+                >
+                  <span className="plan-option-label">{label}</span>
+                  <span className="plan-option-sub">{sublabel}</span>
+                  {isSelected && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+            {plans.filter((p) => validPlanIds.has(p.id)).length === 0 && (
+              <p className="plan-option-empty">No hay planes disponibles</p>
+            )}
           </div>
         )}
 

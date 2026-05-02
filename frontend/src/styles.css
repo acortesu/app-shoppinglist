@@ -1173,7 +1173,74 @@ textarea {
 }
 
 .shopping-plan-picker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
   margin-bottom: 12px;
+}
+
+.plan-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.plan-option:last-child {
+  border-bottom: 0;
+}
+
+.plan-option:hover {
+  background: var(--border);
+}
+
+.plan-option-active {
+  background: rgba(28, 169, 122, 0.08);
+}
+
+.plan-option-active:hover {
+  background: rgba(28, 169, 122, 0.12);
+}
+
+.plan-option-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.plan-option-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.plan-option-active .plan-option-label {
+  color: var(--c2);
+}
+
+.plan-option-active svg {
+  color: var(--c2);
+  flex-shrink: 0;
+}
+
+.plan-option-empty {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
 }
 
 /* PROGRESS CARD */
