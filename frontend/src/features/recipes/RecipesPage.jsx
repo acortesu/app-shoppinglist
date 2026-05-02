@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
+import { RecipeFormModal } from './RecipeFormModal';
 
 export function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
   const [recipes, setRecipes] = useState([]);
@@ -85,6 +86,23 @@ export function RecipesPage({ isActive, setBusy, notifyError, notifySuccess }) {
         ))}
         {filtered.length === 0 && <p className="muted">No hay recetas todavía.</p>}
       </div>
+
+      <RecipeFormModal
+        isOpen={showForm}
+        initial={editing}
+        onClose={() => {
+          setShowForm(false);
+          setEditing(null);
+        }}
+        onSaved={async () => {
+          setShowForm(false);
+          setEditing(null);
+          await loadRecipes();
+          notifySuccess(editing ? 'Receta actualizada' : 'Receta creada');
+        }}
+        setBusy={setBusy}
+        notifyError={notifyError}
+      />
     </section>
   );
 }
