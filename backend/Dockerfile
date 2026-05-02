@@ -19,4 +19,4 @@ COPY --from=build /home/gradle/project/build/libs/*.jar /app/app.jar
 ENV JAVA_OPTS="-XX:+UseSerialGC -Xshare:auto -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "echo 'Starting JVM...' && java ${JAVA_OPTS} -jar /app/app.jar || (echo 'JVM exited with error'; exit 1)"]
