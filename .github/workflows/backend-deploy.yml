@@ -91,19 +91,40 @@ jobs:
           echo "Deployed revision: $REVISION"
           echo "Revision URL: $REVISION_URL"
 
+      - name: Activate new revision (1% traffic)
+        run: |
+          SERVICE="${{ env.SERVICE_NAME }}"
+          REGION="${{ env.CLOUD_RUN_REGION }}"
+          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+          REVISION="${{ steps.deploy.outputs.revision }}"
+
+          echo "Activating new revision with 1% traffic for smoke test..."
+          gcloud run services update-traffic "$SERVICE" \
+            --to-revisions "$REVISION=1,LATEST=99" \
+            --region="$REGION" --project="$PROJECT" || \
+            { echo "Failed to activate revision"; exit 1; }
+          echo "✓ New revision activated"
+
       - name: Smoke test (health check)
         id: smoke
         run: |
-          REVISION_URL="${{ steps.deploy.outputs.revision_url }}"
-          echo "Testing: $REVISION_URL/actuator/health"
+          SERVICE="${{ env.SERVICE_NAME }}"
+          REGION="${{ env.CLOUD_RUN_REGION }}"
+          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+
+          # Get the service URL (which will route to the revision with traffic)
+          SERVICE_URL=$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT" --format='value(status.address.url)')
+
+          echo "Testing service health at: $SERVICE_URL/actuator/health"
 
           max_retries=30
           retry_delay=5
           for i in $(seq 1 $max_retries); do
-            response=$(curl -s -o /dev/null -w "%{http_code}" "$REVISION_URL/actuator/health" 2>&1 || echo "000")
+            response=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL/actuator/health" 2>&1 || echo "000")
             if [ "$response" = "200" ]; then
               echo "✓ Health check passed on attempt $i/$max_retries"
-              echo "Verified revision is healthy and ready for traffic"
+              echo "Verified service is healthy"
               exit 0
             fi
             remaining=$((max_retries - i))
