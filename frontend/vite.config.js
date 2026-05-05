@@ -8,7 +8,7 @@ export default defineConfig(({ command, mode }) => {
     base: isProdBuild ? '/shopping-app/' : '/',
     define: {
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
-        isProdBuild ? 'https://api.acortesdev.xyz' : ''
+        isProdBuild ? 'https://appcompras-backend-vfh75ywbwq-ue.a.run.app' : ''
       )
     },
     plugins: [react()],
