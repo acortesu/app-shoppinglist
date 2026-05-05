@@ -6,6 +6,11 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: isProdBuild ? '/shopping-app/' : '/',
+    define: {
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
+        isProdBuild ? 'https://api.acortesdev.xyz' : ''
+      )
+    },
     plugins: [react()],
     test: {
       environment: 'jsdom',
