@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.appcompras"
-version = "0.1.0"
+version = "0.1.1"
 
 java {
     toolchain {
