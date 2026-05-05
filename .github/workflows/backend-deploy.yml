@@ -72,10 +72,20 @@ jobs:
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --no-traffic \
             --allow-unauthenticated \
-            --set-env-vars="APP_SECURITY_REQUIRE_AUTH=true,APP_ENV=prod,APP_VERSION=0.1.0,LOGGING_LEVEL_ROOT=INFO,SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=-1,SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT=10000" 2>&1)
+            --set-env-vars="APP_SECURITY_REQUIRE_AUTH=true,APP_ENV=prod,APP_VERSION=0.1.0" 2>&1)
+
+          echo "$DEPLOY_OUTPUT"
 
           REVISION=$(echo "$DEPLOY_OUTPUT" | grep -oP 'revision \[\K[^\]]+' | head -1)
-          REVISION_URL="https://${REVISION}-${{ env.CLOUD_RUN_REGION }}.run.app"
+
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.CLOUD_RUN_REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --format='value(status.url)')
+
+          DOMAIN_SUFFIX="${SERVICE_URL#https://${{ env.SERVICE_NAME }}-}"
+          REVISION_URL="https://${REVISION}-${DOMAIN_SUFFIX}"
+
           echo "revision=$REVISION" >> $GITHUB_OUTPUT
           echo "revision_url=$REVISION_URL" >> $GITHUB_OUTPUT
           echo "Deployed revision: $REVISION"
