@@ -20,10 +20,10 @@ if [ ! -d "$FRONTEND_DIR" ]; then
   exit 1
 fi
 
-# Upload to GCS with cache control
+# Upload to GCS with cache control under shopping-app/ path
 echo "📤 Uploading frontend files to GCS..."
 gsutil -m -h "Cache-Control:public, max-age=3600" \
-  cp -r "$FRONTEND_DIR"/* "gs://$GCS_BUCKET/" 2>&1 | tail -5
+  cp -r "$FRONTEND_DIR"/* "gs://$GCS_BUCKET/shopping-app/" 2>&1 | tail -5
 
 echo ""
 echo "✓ Frontend deployed to GCS"
