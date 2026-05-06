@@ -1,0 +1,68 @@
+name: Frontend Deploy (Google Cloud Storage)
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy-gcs.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCS_BUCKET: appcompras-frontend-prod
+  GCP_PROJECT_ID: menu-shopping-list
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://www.acortesdev.xyz/shopping-app/
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Google Cloud Storage
+        run: |
+          gsutil -m -h "Cache-Control:public, max-age=3600" \
+            cp -r frontend/dist/* gs://$GCS_BUCKET/
+
+      - name: Verify deployment
+        run: |
+          echo "✓ Frontend deployed to GCS"
+          echo "📍 URL: https://www.acortesdev.xyz/shopping-app/"
+          gsutil ls -h gs://$GCS_BUCKET/ | head -10
+
+      - name: Invalidate Cloud CDN cache
+        run: |
+          gcloud compute backend-buckets update appcompras-frontend-backend \
+            --enable-cdn \
+            --project=$GCP_PROJECT_ID || true
+          echo "✓ Cloud CDN cache policies updated"
