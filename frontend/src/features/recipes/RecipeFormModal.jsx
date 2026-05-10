@@ -264,114 +264,135 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
         </div>
 
         <div>
-          <label>Nombre</label>
+          <label className="ingredient-label">Nombre</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
 
         <div>
-          <label>Tipo</label>
+          <label className="ingredient-label">Tipo</label>
           <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
             {MEAL_TYPES.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
 
         <div>
-          <label>Ingredientes</label>
-          {ingredients.map((it, idx) => (
-            <div key={idx} className={`ingredient-box ${invalidIngredientIndexes.includes(idx) ? 'ingredient-box-invalid' : ''}`}>
-              <div className="row between">
-                <span className="tiny muted">Ingrediente {idx + 1}</span>
-                <button type="button" className="icon-btn danger" onClick={() => removeIngredient(idx)} disabled={ingredients.length <= 1}>✕</button>
-              </div>
-              <input
-                className="input"
-                placeholder="Nombre del ingrediente"
-                value={it.query || it.ingredientId}
-                onChange={(e) => searchIngredients(idx, e.target.value)}
-              />
-              {it.options?.length > 0 && (
-                <div className="suggestions">
-                  {it.options.slice(0, 6).map((opt) => (
-                    <button
-                      type="button"
-                      key={opt.id}
-                      className="suggestion"
-                      onClick={() => {
-                        const allowedUnits = (opt.allowedUnits || []).map(String);
-                        const nextUnit = allowedUnits.includes(it.unit) ? it.unit : (allowedUnits[0] || 'GRAM');
-                        updateIngredient(idx, {
-                          ingredientId: opt.id,
-                          query: ingredientLabel(opt),
-                          unit: nextUnit,
-                          allowedUnits,
-                          options: []
-                        });
-                      }}
-                    >
-                      {ingredientLabel(opt)}
-                    </button>
-                  ))}
+          <label className="ingredient-label">Ingredientes</label>
+          {ingredients.map((it, idx) => {
+            const showCustomCallout = it.query?.trim() && !it.ingredientId;
+            return (
+              <div key={idx} className={`ingredient-box ${invalidIngredientIndexes.includes(idx) ? 'ingredient-box-invalid' : ''}`}>
+                <div className="ingredient-row-header">
+                  <span className="ingredient-label">Ingrediente {idx + 1}</span>
+                  <button type="button" className="icon-btn danger" onClick={() => removeIngredient(idx)} disabled={ingredients.length <= 1}>✕</button>
                 </div>
-              )}
-              {it.query?.trim() && !it.ingredientId && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => createCustomIngredientForRow(idx)}
-                  disabled={creatingCustomIdx === idx}
-                >
-                  {creatingCustomIdx === idx ? 'Creando...' : `Crear "${it.query.trim()}" como custom`}
-                </button>
-              )}
-              {!it.ingredientId && (
-                <div className="row">
-                  <select
+
+                <div className="ingredient-search">
+                  <input
                     className="input"
-                    value={it.customMeasurementType || measurementTypeFromUnit(it.unit)}
-                    onChange={(e) => {
-                      const nextType = e.target.value;
-                      const nextUnits = unitsForMeasurementType(nextType);
-                      const nextUnit = nextUnits.includes(it.unit) ? it.unit : nextUnits[0];
-                      updateIngredient(idx, { customMeasurementType: nextType, unit: nextUnit });
-                    }}
-                  >
-                    {MEASUREMENT_TYPES.map((t) => <option key={t} value={t}>{MEASUREMENT_TYPE_LABELS_ES[t]}</option>)}
-                  </select>
+                    placeholder="Buscar o crear ingrediente"
+                    value={it.query || it.ingredientId}
+                    onChange={(e) => searchIngredients(idx, e.target.value)}
+                  />
+                  {it.options?.length > 0 && (
+                    <div className="suggestions">
+                      {it.options.slice(0, 6).map((opt) => (
+                        <button
+                          type="button"
+                          key={opt.id}
+                          className="suggestion"
+                          onClick={() => {
+                            const allowedUnits = (opt.allowedUnits || []).map(String);
+                            const nextUnit = allowedUnits.includes(it.unit) ? it.unit : (allowedUnits[0] || 'GRAM');
+                            updateIngredient(idx, {
+                              ingredientId: opt.id,
+                              query: ingredientLabel(opt),
+                              unit: nextUnit,
+                              allowedUnits,
+                              options: []
+                            });
+                          }}
+                        >
+                          {ingredientLabel(opt)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              <div className="row">
-                <input
-                  className="input"
-                  placeholder="Cantidad"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={it.quantity}
-                  onChange={(e) => updateIngredient(idx, { quantity: e.target.value })}
-                  required
-                />
-                <select
-                  className="input"
-                  value={it.unit}
-                  onChange={(e) => {
-                    const nextUnit = e.target.value;
-                    updateIngredient(
-                      idx,
-                      it.ingredientId
-                        ? { unit: nextUnit }
-                        : { unit: nextUnit, customMeasurementType: measurementTypeFromUnit(nextUnit) }
-                    );
-                  }}
-                >
-                  {(Array.isArray(it.allowedUnits) && it.allowedUnits.length > 0
-                    ? it.allowedUnits
-                    : unitsForMeasurementType(it.customMeasurementType || measurementTypeFromUnit(it.unit))).map((u) => (
-                    <option key={u} value={u}>{unitLabel(u)}</option>
-                  ))}
-                </select>
+
+                {showCustomCallout && (
+                  <div className="custom-ingredient-callout">
+                    <p className="custom-ingredient-callout-title">Crear "{it.query.trim()}" como ingrediente</p>
+                    <div>
+                      <label className="ingredient-label">Unidad de medida</label>
+                      <select
+                        className="input"
+                        value={it.customMeasurementType || measurementTypeFromUnit(it.unit)}
+                        onChange={(e) => {
+                          const nextType = e.target.value;
+                          const nextUnits = unitsForMeasurementType(nextType);
+                          const nextUnit = nextUnits.includes(it.unit) ? it.unit : nextUnits[0];
+                          updateIngredient(idx, { customMeasurementType: nextType, unit: nextUnit });
+                        }}
+                      >
+                        {MEASUREMENT_TYPES.map((t) => <option key={t} value={t}>{MEASUREMENT_TYPE_LABELS_ES[t]}</option>)}
+                      </select>
+                    </div>
+                    <div className="custom-ingredient-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => createCustomIngredientForRow(idx)}
+                        disabled={creatingCustomIdx === idx}
+                      >
+                        {creatingCustomIdx === idx ? 'Creando...' : 'Crear'}
+                      </button>
+                      <button
+                        type="button"
+                        className="link-btn"
+                        onClick={() => updateIngredient(idx, { query: '' })}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {it.ingredientId && (
+                  <>
+                    <div>
+                      <label className="ingredient-label">Cantidad</label>
+                      <div className="row">
+                        <input
+                          className="input"
+                          placeholder="Cantidad"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={it.quantity}
+                          onChange={(e) => updateIngredient(idx, { quantity: e.target.value })}
+                          required
+                        />
+                        <select
+                          className="input"
+                          value={it.unit}
+                          onChange={(e) => {
+                            const nextUnit = e.target.value;
+                            updateIngredient(idx, { unit: nextUnit });
+                          }}
+                        >
+                          {(Array.isArray(it.allowedUnits) && it.allowedUnits.length > 0
+                            ? it.allowedUnits
+                            : unitsForMeasurementType(it.customMeasurementType || measurementTypeFromUnit(it.unit))).map((u) => (
+                            <option key={u} value={u}>{unitLabel(u)}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           <button
             type="button"
             className="btn"
@@ -381,20 +402,20 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
           </button>
         </div>
 
-        {formError && <p className="auth-error">{formError}</p>}
+        {formError && <p className="notice-text" style={{ color: '#c82828' }}>{formError}</p>}
 
         <div>
-          <label>Instrucciones</label>
+          <label className="ingredient-label">Instrucciones (opcional)</label>
           <textarea className="input textarea" value={preparation} onChange={(e) => setPreparation(e.target.value)} />
         </div>
 
         <div>
-          <label>Notas</label>
+          <label className="ingredient-label">Notas (opcional)</label>
           <textarea className="input textarea" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
         <div>
-          <label>Tags (separados por coma)</label>
+          <label className="ingredient-label">Tags (separados por coma)</label>
           <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
         </div>
 

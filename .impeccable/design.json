@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-10T00:00:00Z",
+  "title": "Design System: appCompras",
+  "extensions": {
+    "colorMeta": {
+      "primary-gold": {
+        "role": "primary",
+        "displayName": "Golden Amber",
+        "canonical": "#ffb81c",
+        "tonalRamp": ["#1a0f00", "#4d2e00", "#804c00", "#b36b00", "#ffb81c", "#ffd147", "#ffe58f", "#fff3d6"]
+      },
+      "accent-teal": {
+        "role": "secondary",
+        "displayName": "Inviting Teal",
+        "canonical": "#1ca97a",
+        "tonalRamp": ["#0d3d2d", "#1a5c47", "#227a5f", "#2a9877", "#1ca97a", "#4dbfa1", "#7fd4c3", "#b3e8df"]
+      },
+      "accent-coral": {
+        "role": "secondary",
+        "displayName": "Vibrant Coral",
+        "canonical": "#ee3e4b",
+        "tonalRamp": ["#3d0008", "#6b0d17", "#991829", "#c63344", "#ee3e4b", "#f27380", "#f5a5ad", "#f8d4d8"]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Clean White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1a1a1a", "#4d4d4d", "#808080", "#b3b3b3", "#ffffff", "#ffffff", "#ffffff", "#ffffff"]
+      },
+      "neutral-surface": {
+        "role": "neutral",
+        "displayName": "Warm Surface",
+        "canonical": "#f5f3ef",
+        "tonalRamp": ["#2b2723", "#4d4740", "#7a7268", "#b3a899", "#f5f3ef", "#faf9f6", "#fcfbfa", "#fdfcfc"]
+      },
+      "neutral-text": {
+        "role": "neutral",
+        "displayName": "Near Black",
+        "canonical": "#111111",
+        "tonalRamp": ["#000000", "#1a1a1a", "#333333", "#66666", "#999999", "#cccccc", "#e6e6e6", "#f2f2f2"]
+      },
+      "neutral-muted": {
+        "role": "neutral",
+        "displayName": "Muted Gray",
+        "canonical": "#6e6b65",
+        "tonalRamp": ["#2a2825", "#3d3a33", "#52504a", "#6e6b65", "#9a9792", "#c3c1bc", "#dcdad5", "#f0eeeb"]
+      },
+      "semantic-error": {
+        "role": "error",
+        "displayName": "Error Red",
+        "canonical": "#c82828",
+        "tonalRamp": ["#330000", "#660000", "#991111", "#cc2222", "#c82828", "#ff4444", "#ff7777", "#ffaaaa"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page headers and hero text. Responsive: 40px on desktop, 32px on mobile."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Card headings, major section titles. Strong weight signals hierarchy."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Primary content and paragraph text. Capped at 65–75 characters per line."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels, secondary content, button text. Medium weight for emphasis."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Footnotes, helper text, metadata. Smallest readable size."
+      }
+    },
+    "shadows": [
+      {
+        "name": "nav-float",
+        "value": "0 4px 16px rgba(0, 0, 0, 0.12)",
+        "purpose": "Floating bottom navigation only. Indicates above-content elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-hover",
+        "value": "all 0.2s",
+        "purpose": "State transitions on buttons, inputs, and interactive elements."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-max",
+        "value": "520px",
+        "purpose": "Below this, display font scales down to 32px."
+      },
+      {
+        "name": "shell-max",
+        "value": "460px",
+        "purpose": "Max width of the mobile shell container."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button Primary",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-confidence action (save, generate, submit). Golden primary background, white text.",
+      "html": "<button class=\"ds-btn-primary\">Save Recipe</button>",
+      "css": ".ds-btn-primary { display: inline-block; background: #ffb81c; color: #ffffff; border: 0; border-radius: 12px; padding: 11px 14px; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; } .ds-btn-primary:hover:not(:disabled) { opacity: 0.9; } .ds-btn-primary:active { opacity: 0.8; }"
+    },
+    {
+      "name": "Button Secondary",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Lower-priority action. Neutral surface background, dark text.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-block; background: #f5f3ef; color: #111111; border: 1px solid #e8e4dc; border-radius: 12px; padding: 11px 14px; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 500; cursor: pointer; transition: background 0.2s, border-color 0.2s; } .ds-btn-secondary:hover:not(:disabled) { background: #ede9e1; border-color: #dcd8d0; } .ds-btn-secondary:active { background: #e8e4dc; }"
+    },
+    {
+      "name": "Button Pill Active",
+      "kind": "button",
+      "refersTo": "button-pill-active",
+      "description": "Tab-like selection. Active state uses primary gold background.",
+      "html": "<button class=\"ds-btn-pill ds-btn-pill-active\">Breakfast</button>",
+      "css": ".ds-btn-pill { background: #f5f3ef; color: #111111; border: 1px solid #e8e4dc; border-radius: 999px; padding: 8px 14px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; } .ds-btn-pill-active { background: #ffb81c; color: #ffffff; border-color: transparent; font-weight: 600; }"
+    },
+    {
+      "name": "Input Text",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Text input field for recipe names, ingredient search, quantities.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Recipe name\">",
+      "css": ".ds-input { width: 100%; background: #f5f3ef; color: #111111; border: 1px solid #e8e4dc; border-radius: 12px; padding: 11px 13px; font-family: 'Inter', sans-serif; font-size: 16px; } .ds-input::placeholder { color: #6e6b65; } .ds-input:focus { outline: none; border-color: #111111; box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.1); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Container for recipe, meal plan, or shopping item. Warm surface color, subtle border.",
+      "html": "<div class=\"ds-card\"><h3>Arroz con Huevo</h3><p>Quick weeknight dinner</p></div>",
+      "css": ".ds-card { background: #f5f3ef; border: 1px solid #e8e4dc; border-radius: 16px; padding: 16px; } .ds-card h3 { margin: 0 0 8px; font-family: 'Bricolage Grotesque', Georgia, serif; font-size: 20px; font-weight: 600; color: #111111; } .ds-card p { margin: 6px 0; color: #6e6b65; font-size: 14px; }"
+    },
+    {
+      "name": "Pill Tag",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Inline metadata, category, or state label.",
+      "html": "<span class=\"ds-pill\">Dinner</span>",
+      "css": ".ds-pill { display: inline-block; background: #f5f3ef; border: 1px solid #e8e4dc; border-radius: 8px; padding: 3px 10px; color: #6e6b65; font-size: 12px; font-family: 'Inter', sans-serif; }"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "bottom-nav",
+      "description": "Fixed floating nav at bottom of mobile shell. Tab-based navigation between Recipes, Planner, Shopping.",
+      "html": "<nav class=\"ds-bottom-nav\"><button>Recipes</button><button class=\"active\">Planner</button><button>Shopping</button></nav>",
+      "css": ".ds-bottom-nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; width: min(calc(100vw - 36px), 424px); display: flex; justify-content: space-between; gap: 16px; background: #ffffff; border: 1px solid #e8e4dc; border-radius: 999px; padding: 10px 18px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); z-index: 20; } .ds-bottom-nav button { background: transparent; border: 0; color: #6e6b65; font-size: 14px; cursor: pointer; transition: color 0.2s; } .ds-bottom-nav button:hover { color: #111111; } .ds-bottom-nav button.active { color: #ffb81c; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ingredient Palette",
+    "overview": "appCompras is a warm, inviting meal-planning tool built on a culinary foundation. The color palette—golden amber primary with vibrant accent colors—evokes both the practical efficiency of a kitchen and the diversity of ingredients. The design is intentionally minimal and calm: breathing room, generous whitespace, two complementary typefaces, and minimal shadows. Users plan meals without stress or corporate coldness. This is not a spreadsheet. It's a capable, thoughtful companion.",
+    "keyCharacteristics": [
+      "Warm, approachable neutrals with one strong golden primary accent",
+      "Two-font hierarchy: serif-leaning display type, clean sans body",
+      "Minimal elevation (flat by default, single soft shadow on fixed nav)",
+      "Mobile-first responsive; generous tap targets (44px minimum)",
+      "Breathing space between sections; varied rhythm in padding and margins"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "The golden primary (#ffb81c) is used on ≤10% of any screen. It is never combined with other accent colors on a single screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Foundation Rule",
+        "body": "Every neutral should tint slightly toward the palette's warm hue, never pure gray. Warmth invites; cool grays make the interface feel sterile.",
+        "section": "colors"
+      },
+      {
+        "name": "The Weight Contrast Rule",
+        "body": "Hierarchy is achieved through weight (400 → 600) and size (16px → 40px), never through color alone.",
+        "section": "typography"
+      },
+      {
+        "name": "The Line-Length Rule",
+        "body": "Body text is capped at 65–75 characters per line. On wider screens, add constraints so reading remains comfortable.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. Shadows are forbidden except on the fixed bottom navigation. Use tonal layering and borders to define structure.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the golden primary (#ffb81c) for the single most important action on any screen. ≤10% coverage.",
+      "Do rely on tonal layering (surface colors) and 1px borders to define structure. No shadows except the bottom nav.",
+      "Do maintain 44px minimum tap target size on mobile for all interactive elements.",
+      "Do respect prefers-reduced-motion — no automatic animations, state changes only.",
+      "Do ensure color contrast meets WCAG AA minimum (4.5:1 for body text).",
+      "Do use Bricolage Grotesque sparingly (h1, card headings). Weight contrast with Inter is the visual rhythm.",
+      "Do cap body text at 65–75 characters per line and use left-align."
+    ],
+    "donts": [
+      "Don't combine multiple accent colors on a single screen.",
+      "Don't use #000000 or #ffffff as pure black/white. Tint toward warmth.",
+      "Don't add shadows to cards, buttons, or inputs. Only the nav floats.",
+      "Don't use side-stripe borders (border-left > 1px) as a colored accent.",
+      "Don't animate CSS layout properties. Transitions only on background-color, opacity, color.",
+      "Don't apply gradient text (background-clip: text) for emphasis.",
+      "Don't use glassmorphism, blur effects, or decorative overlays.",
+      "Don't assume dark mode is an improvement. The warm, light palette is the complete vision.",
+      "Don't use SaaS marketing clichés: no gradient backgrounds, no neon accents, no AI-hype language."
+    ]
+  }
+}
