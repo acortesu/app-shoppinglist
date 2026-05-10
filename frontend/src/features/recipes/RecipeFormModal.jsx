@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '../../components/Modal';
+import { IngredientModal } from './IngredientModal';
 import { api } from '../../api';
 
 const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER'];
@@ -83,6 +84,8 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
   const [formError, setFormError] = useState('');
   const [invalidIngredientIndexes, setInvalidIngredientIndexes] = useState([]);
   const [creatingCustomIdx, setCreatingCustomIdx] = useState(-1);
+  const [ingredientModalOpen, setIngredientModalOpen] = useState(false);
+  const [ingredientModalName, setIngredientModalName] = useState('');
 
   const updateIngredient = (idx, patch) => {
     if (formError) setFormError('');
@@ -119,7 +122,7 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
     setIngredients((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const createCustomIngredientForRow = async (idx) => {
+  const createCustomIngredientForRow = (idx) => {
     const row = ingredients[idx];
     const name = (row?.query || '').trim();
     if (!name) {
@@ -127,54 +130,27 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
       setInvalidIngredientIndexes([idx]);
       return;
     }
+    setIngredientModalName(name);
+    setIngredientModalOpen(true);
+  };
 
-    try {
-      setCreatingCustomIdx(idx);
-      const measurementType = row.customMeasurementType || measurementTypeFromUnit(row.unit);
-      const created = await api.createCustomIngredient({ name, measurementType });
+  const handleIngredientModalCreated = (created) => {
+    const idx = ingredients.findIndex((it) => (it.query || '').trim() === ingredientModalName);
+    if (idx >= 0) {
       const allowedUnits = (created.allowedUnits || []).map(String);
       updateIngredient(idx, {
         ingredientId: created.id,
         query: created.name,
         allowedUnits,
-        unit: allowedUnits.includes(row.unit) ? row.unit : (allowedUnits[0] || row.unit),
-        customMeasurementType: measurementType,
+        unit: allowedUnits.includes(ingredients[idx].unit) ? ingredients[idx].unit : (allowedUnits[0] || ingredients[idx].unit),
+        customMeasurementType: created.measurementType || 'UNIT',
         options: []
       });
       setFormError('');
       setInvalidIngredientIndexes([]);
-    } catch (err) {
-      const message = err?.payload?.error || err?.message || '';
-      const existingMatch = message.match(/Ingredient already exists:\s*([^\s.]+)/i);
-      const existingId = existingMatch?.[1]?.trim();
-      if (existingId) {
-        try {
-          const [byName, byId] = await Promise.all([
-            api.listIngredients(name),
-            api.listIngredients(existingId)
-          ]);
-          const existing = [...(byName || []), ...(byId || [])].find((opt) => opt.id === existingId);
-          if (existing) {
-            const allowedUnits = (existing.allowedUnits || []).map(String);
-            updateIngredient(idx, {
-              ingredientId: existing.id,
-              query: ingredientLabel(existing),
-              allowedUnits,
-              unit: allowedUnits.includes(row.unit) ? row.unit : (allowedUnits[0] || row.unit),
-              options: []
-            });
-            setFormError('');
-            setInvalidIngredientIndexes([]);
-            return;
-          }
-        } catch {
-          // fallback to default error handling
-        }
-      }
-      notifyError(err, 'recipe_form');
-    } finally {
-      setCreatingCustomIdx(-1);
     }
+    setIngredientModalOpen(false);
+    setIngredientModalName('');
   };
 
   const onSubmit = async (e) => {
@@ -319,41 +295,23 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
                   )}
                 </div>
 
-                {showCustomCallout && (
-                  <div className="custom-ingredient-callout">
-                    <p className="custom-ingredient-callout-title">Crear "{it.query.trim()}" como ingrediente</p>
-                    <div>
-                      <label className="ingredient-label">Unidad de medida</label>
-                      <select
-                        className="input"
-                        value={it.customMeasurementType || measurementTypeFromUnit(it.unit)}
-                        onChange={(e) => {
-                          const nextType = e.target.value;
-                          const nextUnits = unitsForMeasurementType(nextType);
-                          const nextUnit = nextUnits.includes(it.unit) ? it.unit : nextUnits[0];
-                          updateIngredient(idx, { customMeasurementType: nextType, unit: nextUnit });
-                        }}
-                      >
-                        {MEASUREMENT_TYPES.map((t) => <option key={t} value={t}>{MEASUREMENT_TYPE_LABELS_ES[t]}</option>)}
-                      </select>
-                    </div>
-                    <div className="custom-ingredient-actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => createCustomIngredientForRow(idx)}
-                        disabled={creatingCustomIdx === idx}
-                      >
-                        {creatingCustomIdx === idx ? 'Creando...' : 'Crear'}
-                      </button>
-                      <button
-                        type="button"
-                        className="link-btn"
-                        onClick={() => updateIngredient(idx, { query: '' })}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
+                {it.query?.trim() && !it.options?.length && (
+                  <div className="custom-ingredient-callout" style={{ background: '#fff0f0', borderColor: '#fce4e4' }}>
+                    <p className="custom-ingredient-callout-title" style={{ color: '#c82828' }}>"{it.query.trim()}" no está en el catálogo</p>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => createCustomIngredientForRow(idx)}
+                      style={{
+                        borderColor: '#fce4e4',
+                        background: '#ffffff',
+                        color: '#c82828',
+                        fontWeight: 500,
+                        width: '100%'
+                      }}
+                    >
+                      Crear como ingrediente
+                    </button>
                   </div>
                 )}
 
@@ -421,6 +379,17 @@ export function RecipeFormModal({ isOpen, initial, onClose, onSaved, setBusy, no
 
         <button className="btn btn-primary" type="submit">{initial ? 'Guardar cambios' : 'Crear receta'}</button>
       </form>
+
+      <IngredientModal
+        isOpen={ingredientModalOpen}
+        ingredientName={ingredientModalName}
+        onClose={() => {
+          setIngredientModalOpen(false);
+          setIngredientModalName('');
+        }}
+        onCreated={handleIngredientModalCreated}
+        notifyError={notifyError}
+      />
     </Modal>
   );
 }
