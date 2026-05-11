@@ -52,7 +52,7 @@ jobs:
       - name: Deploy to Google Cloud Storage
         run: |
           gsutil -m -h "Cache-Control:public, max-age=3600" \
-            cp -r frontend/dist/* gs://$GCS_BUCKET/
+            cp -r frontend/dist/* gs://$GCS_BUCKET/shopping-app/
 
       - name: Verify deployment
         run: |
