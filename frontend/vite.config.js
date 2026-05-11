@@ -5,7 +5,7 @@ export default defineConfig(({ command, mode }) => {
   const isProdBuild = command === 'build' && mode === 'production'
 
   return {
-    base: '/',
+    base: isProdBuild ? '/shopping-app/' : '/',
     define: {
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
         isProdBuild ? 'https://appcompras-backend-vfh75ywbwq-ue.a.run.app' : ''
